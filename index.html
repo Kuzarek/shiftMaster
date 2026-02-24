@@ -229,6 +229,95 @@ td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:var(--bg)}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* ── MOBILE TOGGLE ─────────────────────────────────────────────── */
+.mob-toggle{display:none;background:var(--acc);border:none;border-radius:var(--rs);color:#fff;cursor:pointer;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;padding:6px 12px;white-space:nowrap;flex-shrink:0}
+.mob-toggle:hover{background:var(--acc-h)}
+.mob-close{display:none;position:sticky;top:0;z-index:101;background:var(--surface);border:none;border-bottom:1px solid var(--border);color:var(--text);cursor:pointer;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;padding:12px 14px;text-align:right;width:100%}
+.mob-close:hover{color:var(--acc)}
+.mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99}
+
+/* ── RESPONSIVE ───────────────────────────────────────────────── */
+@media(max-width:900px){
+  header{padding:8px 12px;gap:8px;flex-wrap:wrap}
+  .logo{width:28px;height:28px;font-size:13px;border-radius:7px}
+  header h1{font-size:16px}
+  .subtitle{font-size:8px;letter-spacing:1.5px}
+  .hacts{gap:4px;flex-wrap:wrap}
+  .hbtn{font-size:9px;padding:4px 6px}
+  .thbtn{font-size:11px;padding:3px 7px}
+  .toast{font-size:9px}
+
+  .mob-toggle{display:block}
+
+  .app{grid-template-columns:1fr;height:calc(100vh - 62px)}
+
+  .sidebar{position:fixed;top:0;left:0;right:0;bottom:0;z-index:100;transform:translateX(-100%);transition:transform .25s ease;border-right:none;overflow-y:auto}
+  .sidebar.open{transform:translateX(0)}
+  .sidebar.open~.mob-overlay{display:block}
+  .mob-close-vis{display:block}
+
+  .main{grid-column:1}
+  .main-inner{padding:12px}
+
+  .spanel{padding:12px}
+  .stab{font-size:10px;padding:10px 3px}
+
+  .genwrap{padding:10px 12px;position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);z-index:5}
+
+  .sbar{grid-template-columns:repeat(2,1fr);gap:6px;padding:10px 12px}
+
+  .hvis{padding:8px 12px}
+  .hname{width:55px;font-size:11px}
+  .hbk{width:auto;font-size:9px}
+  .hrow{flex-wrap:wrap}
+
+  .twrap{-webkit-overflow-scrolling:touch}
+  th.wcol{min-width:70px}
+
+  .sched-hdr{flex-wrap:wrap;gap:6px;padding:9px 12px}
+  .sched-meta{font-size:10px;order:3;width:100%}
+  .sched-block{border-radius:6px}
+
+  .legrow{padding:8px 12px;gap:6px}
+  .legitem{font-size:10px}
+
+  .expall-wrap{justify-content:stretch}
+  .expall-btn{font-size:11px;padding:8px 12px;width:100%}
+
+  .alert{font-size:11px;padding:10px 12px}
+}
+
+@media(max-width:480px){
+  header{padding:6px 10px;gap:6px}
+  .logo{width:26px;height:26px;font-size:12px}
+  header h1{font-size:14px}
+  .subtitle{display:none}
+  .hacts{width:100%;justify-content:flex-end;margin-left:0}
+  .hbtn{font-size:8px;padding:3px 5px}
+
+  .sbar{grid-template-columns:1fr}
+
+  .whead{padding:8px}
+  .wname{font-size:12px}
+  .wbody{padding:0 8px 8px}
+  .calgrid{gap:1px}
+  .cald{font-size:10px}
+  .cmodes{gap:2px}
+  .cmbtn{font-size:9px;padding:4px 6px}
+
+  .sched-hdr{padding:8px 10px}
+  .sched-num{font-size:11px}
+
+  .cell{height:28px;font-size:10px}
+  td.wn{font-size:11px;padding:4px 6px;min-width:60px}
+  th{font-size:9px;padding:4px 2px}
+  th.wcol{min-width:60px;padding-left:6px}
+
+  .empty-icon{font-size:32px}
+  .empty h2{font-size:13px}
+  .empty p{font-size:10px}
+}
 </style>
 </head>
 <body>
@@ -241,10 +330,12 @@ td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
     <button class="hbtn sv" onclick="saveW()">💾 Zapisz pracowników</button>
     <button class="hbtn" onclick="loadW()">📂 Wczytaj pracowników</button>
     <button class="hbtn" onclick="clearSave()" style="opacity:.45">🗑</button>
+    <button class="mob-toggle" onclick="togSidebar()">☰ Panel</button>
   </div>
 </header>
 <div class="app">
-<aside class="sidebar">
+<aside class="sidebar" id="sidebar">
+  <button class="mob-close" id="mobClose" onclick="togSidebar()">✕ Zamknij</button>
   <div class="stabs">
     <button class="stab active" onclick="showP('pw',this)">👥 Pracownicy</button>
     <button class="stab" onclick="showP('pwe',this)">📅 Weekendy</button>
@@ -312,6 +403,7 @@ td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
     <button class="genbtn" id="genBtn" onclick="runGen()">⚡ Generuj Grafik</button>
   </div>
 </aside>
+<div class="mob-overlay" id="mobOverlay" onclick="togSidebar()"></div>
 <main class="main">
   <div class="main-inner" id="mainInner">
     <div class="empty">
@@ -362,6 +454,17 @@ function togTheme(){
   document.documentElement.dataset.theme=s;
   document.addEventListener('DOMContentLoaded',()=>{document.getElementById('thBtn').textContent=s==='dark'?'☀️':'🌙';});
 })();
+
+// ── MOBILE SIDEBAR TOGGLE ──────────────────────────────────────
+function togSidebar(){
+  const sb=document.getElementById('sidebar');
+  const ov=document.getElementById('mobOverlay');
+  const cl=document.getElementById('mobClose');
+  const open=sb.classList.toggle('open');
+  ov.style.display=open?'block':'none';
+  cl.style.display=open?'block':'none';
+  document.body.style.overflow=open?'hidden':'';
+}
 
 // ── SAVE / LOAD ────────────────────────────────────────────────────
 function saveW(){
@@ -784,6 +887,11 @@ function runGen(){
       }
     }catch(e){document.getElementById('mainInner').innerHTML=`<div class="alert">⚠ Błąd: ${e.message}</div>`;}
     btn.disabled=false;btn.innerHTML='⚡ Generuj Grafik';
+    // Auto-close sidebar on mobile after generating
+    if(window.innerWidth<=900){
+      const sb=document.getElementById('sidebar');
+      if(sb.classList.contains('open'))togSidebar();
+    }
   },30);
 }
 
