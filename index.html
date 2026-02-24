@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ShiftMaster v6.3 — Generator Grafiku</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
 <style>
 [data-theme="dark"]{
   --bg:#0e0e12;--surface:#16161d;--surface2:#1e1e28;--surface3:#2a2a38;
@@ -32,7 +32,7 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
-body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;overflow-x:hidden;transition:background .25s,color .25s}
+body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;font-size:14px;overflow-x:hidden;transition:background .25s,color .25s;display:flex;flex-direction:column}
 body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--grid-line) 1px,transparent 1px),linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
 
 /* HEADER */
@@ -40,29 +40,29 @@ header{position:relative;z-index:10;padding:13px 28px;border-bottom:1px solid va
 .logo{width:34px;height:34px;background:var(--acc);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 3px 12px rgba(108,99,255,.35);flex-shrink:0}
 header h1{font-size:19px;font-weight:800;letter-spacing:-.5px}
 header h1 span{color:var(--acc)}
-.subtitle{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-top:1px}
+.subtitle{font-family:'Fira Code',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-top:1px}
 .hacts{margin-left:auto;display:flex;gap:5px;align-items:center}
 .thbtn{background:var(--surface2);border:1px solid var(--border);border-radius:20px;cursor:pointer;font-size:13px;padding:4px 9px;transition:all .2s;line-height:1}
 .thbtn:hover{border-color:var(--acc)}
-.hbtn{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:10px;padding:5px 8px;transition:all .15s;white-space:nowrap}
+.hbtn{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--muted);cursor:pointer;font-family:'Fira Code',monospace;font-size:10px;padding:5px 8px;transition:all .15s;white-space:nowrap}
 .hbtn:hover{border-color:var(--acc);color:var(--acc)}
 .hbtn.sv:hover{border-color:var(--teal);color:var(--teal)}
-.toast{font-family:'DM Mono',monospace;font-size:10px;color:var(--teal);opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+.toast{font-family:'Fira Code',monospace;font-size:10px;color:var(--teal);opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
 
 /* LAYOUT */
-.app{position:relative;z-index:1;display:grid;grid-template-columns:390px 1fr;height:calc(100vh - 62px)}
+.app{position:relative;z-index:1;display:grid;grid-template-columns:390px 1fr;flex:1;min-height:0}
 
 /* SIDEBAR */
 .sidebar{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:var(--surface)}
 .stabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
-.stab{flex:1;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;padding:9px 3px;text-transform:uppercase;transition:all .2s;margin-bottom:-1px}
+.stab{flex:1;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;padding:9px 3px;text-transform:uppercase;transition:all .2s;margin-bottom:-1px}
 .stab.active{color:var(--acc);border-bottom-color:var(--acc)}
 .spanel{display:none;flex-direction:column;gap:13px;overflow-y:auto;padding:14px 14px 10px;flex:1}
 .spanel.active{display:flex}
 .sec{font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:7px;display:flex;align-items:center;gap:8px}
 .sec::after{content:'';flex:1;height:1px;background:var(--border)}
 label{display:block;font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
-input,select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:'DM Mono',monospace;font-size:12px;padding:6px 9px;outline:none;transition:border-color .2s}
+input,select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:'Fira Code',monospace;font-size:12px;padding:6px 9px;outline:none;transition:border-color .2s}
 input:focus,select:focus{border-color:var(--acc)}
 .drow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
@@ -71,14 +71,14 @@ input:focus,select:focus{border-color:var(--acc)}
 .wcard.exp{border-color:var(--acc);box-shadow:0 2px 8px var(--acc-dim)}
 .whead{display:flex;align-items:center;gap:6px;padding:9px 10px}
 .wdot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.wname{flex:1;background:transparent;border:none;border-bottom:1px solid transparent;border-radius:0;color:var(--text);font-family:'Syne',sans-serif;font-weight:700;font-size:13px;padding:1px 0}
+.wname{flex:1;background:transparent;border:none;border-bottom:1px solid transparent;border-radius:0;color:var(--text);font-family:'Outfit',sans-serif;font-weight:700;font-size:15px;padding:1px 0}
 .wname:focus{outline:none;border-bottom-color:var(--acc)}
 .wbadges{display:flex;gap:3px;flex-shrink:0}
-.wbadge{font-family:'DM Mono',monospace;font-size:9px;padding:2px 4px;border-radius:3px;border:1px solid;white-space:nowrap}
+.wbadge{font-family:'Fira Code',monospace;font-size:9px;padding:2px 4px;border-radius:3px;border:1px solid;white-space:nowrap}
 .bc{background:var(--surface2);border-color:var(--border);color:var(--muted)}
 .bo{background:var(--teal-bg);border-color:var(--teal);color:var(--teal)}
 [data-theme="dark"] .bo{background:var(--teal-dim)}
-.warr{background:none;border:none;color:var(--muted);cursor:pointer;font-size:10px;padding:2px 4px;transition:transform .2s;line-height:1;flex-shrink:0}
+.warr{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:2px 8px;transition:transform .2s;line-height:1;flex-shrink:0}
 .warr.op{transform:rotate(180deg)}
 .wdel{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:0 2px;transition:color .2s;flex-shrink:0}
 .wdel:hover{color:var(--red)}
@@ -86,27 +86,27 @@ input:focus,select:focus{border-color:var(--acc)}
 .wopts{padding:8px 0 6px;border-bottom:1px solid var(--border);margin-bottom:3px;display:flex;flex-direction:column;gap:5px}
 .chkr{display:flex;align-items:flex-start;gap:7px;cursor:pointer;user-select:none}
 .chkr input[type=checkbox]{width:13px;height:13px;margin-top:1px;accent-color:var(--acc);cursor:pointer;flex-shrink:0}
-.chkl{font-size:13px;color:var(--text);line-height:1.4}
-.chkn{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-left:20px;line-height:1.5;margin-top:1px}
+.chkl{font-size:14px;color:var(--text);line-height:1.4}
+.chkn{font-family:'Fira Code',monospace;font-size:9px;color:var(--muted);margin-left:20px;line-height:1.5;margin-top:1px}
 
 /* CLICK MODES */
 .cmodes{display:flex;gap:3px;margin:7px 0 4px;flex-wrap:wrap}
-.cmbtn{border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:10px;padding:3px 5px;transition:all .1s;white-space:nowrap}
+.cmbtn{border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--muted);cursor:pointer;font-family:'Fira Code',monospace;font-size:10px;padding:3px 5px;transition:all .1s;white-space:nowrap}
 .cmbtn.on-vac   {background:var(--purple);border-color:var(--purple);color:#fff}
 .cmbtn.on-off   {background:var(--gray);border-color:var(--gray);color:#fff}
 .cmbtn.on-no-d  {background:var(--yellow);border-color:var(--yellow);color:#fff}
 [data-theme="light"] .cmbtn.on-no-d{color:#1a1a2e}
 .cmbtn.on-no-n  {background:var(--orange);border-color:var(--orange);color:#fff}
 .cmbtn.on-clr   {background:var(--muted2);border-color:var(--muted2);color:#fff}
-.mhint{font-size:9px;font-family:'DM Mono',monospace;color:var(--muted);margin-bottom:5px;line-height:1.5;min-height:10px}
+.mhint{font-size:9px;font-family:'Fira Code',monospace;color:var(--muted);margin-bottom:5px;line-height:1.5;min-height:10px}
 
 /* MINI CALENDAR */
 .calhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
 .caltit{font-size:11px;font-weight:600;color:var(--muted)}
-.calcnt{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted)}
+.calcnt{font-family:'Fira Code',monospace;font-size:9px;color:var(--muted)}
 .calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
-.caldn{text-align:center;font-family:'DM Mono',monospace;font-size:9px;color:var(--muted2);padding:1px 0}
-.cald{border-radius:3px;cursor:pointer;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);border:1px solid transparent;transition:all .1s;user-select:none}
+.caldn{text-align:center;font-family:'Fira Code',monospace;font-size:9px;color:var(--muted2);padding:1px 0}
+.cald{border-radius:3px;cursor:pointer;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-family:'Fira Code',monospace;font-size:11px;color:var(--muted);border:1px solid transparent;transition:all .1s;user-select:none}
 .cald:hover:not(.emp){background:var(--surface3);color:var(--text)}
 .cald.emp{cursor:default;pointer-events:none}
 .cald.we{color:var(--muted2)}
@@ -123,15 +123,15 @@ input:focus,select:focus{border-color:var(--acc)}
 [data-theme="dark"] .cald.rnn {background:var(--orange-dim)!important}
 [data-theme="dark"] .cald.rnb {background:var(--red-dim)!important}
 .calleg{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
-.cli{display:flex;align-items:center;gap:3px;font-size:9px;font-family:'DM Mono',monospace;color:var(--muted2)}
+.cli{display:flex;align-items:center;gap:3px;font-size:9px;font-family:'Fira Code',monospace;color:var(--muted2)}
 .clidot{width:6px;height:6px;border-radius:1px;flex-shrink:0;border:1px solid}
 
 /* WEEKEND CONFIG */
 .wegrid{display:flex;flex-direction:column;gap:3px}
 .werow{display:flex;align-items:center;gap:6px;padding:5px 7px;background:var(--surface2);border-radius:5px;border:1px solid var(--border)}
-.wedate{font-family:'DM Mono',monospace;font-size:11px;color:var(--text);flex:1}
+.wedate{font-family:'Fira Code',monospace;font-size:11px;color:var(--text);flex:1}
 .webtns{display:flex;gap:2px}
-.webtn{border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:10px;padding:2px 5px;transition:all .12s}
+.webtn{border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--muted);cursor:pointer;font-family:'Fira Code',monospace;font-size:10px;padding:2px 5px;transition:all .12s}
 .webtn.a24{background:#d6eef8;border-color:#1a7fa8;color:#1a7fa8}
 [data-theme="dark"] .webtn.a24{background:rgba(135,206,235,.18)}
 .webtn.asp{background:var(--green-bg);border-color:var(--green);color:var(--green)}
@@ -140,11 +140,11 @@ input:focus,select:focus{border-color:var(--acc)}
 
 /* GEN BUTTON */
 .genwrap{padding:0 14px 14px;flex-shrink:0}
-.genbtn{background:var(--acc);border:none;border-radius:var(--r);color:#fff;cursor:pointer;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;letter-spacing:1px;padding:11px;width:100%;transition:all .2s;text-transform:uppercase}
+.genbtn{background:var(--acc);border:none;border-radius:var(--r);color:#fff;cursor:pointer;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;letter-spacing:1px;padding:11px;width:100%;transition:all .2s;text-transform:uppercase}
 .genbtn:hover{background:var(--acc-h);transform:translateY(-1px);box-shadow:0 6px 18px rgba(108,99,255,.3)}
 .genbtn:active{transform:none}
 .genbtn:disabled{opacity:.5;cursor:not-allowed;transform:none}
-.addwbtn{background:transparent;border:1px dashed var(--border);border-radius:var(--r);color:var(--muted);cursor:pointer;padding:7px;width:100%;font-family:'Syne',sans-serif;font-size:13px;font-weight:600;transition:all .2s}
+.addwbtn{background:transparent;border:1px dashed var(--border);border-radius:var(--r);color:var(--muted);cursor:pointer;padding:7px;width:100%;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;transition:all .2s}
 .addwbtn:hover{border-color:var(--acc);color:var(--acc)}
 
 /* MAIN */
@@ -153,43 +153,43 @@ input:focus,select:focus{border-color:var(--acc)}
 .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:11px;color:var(--muted);text-align:center;min-height:280px}
 .empty-icon{font-size:42px;opacity:.2}
 .empty h2{font-size:15px;color:var(--text);opacity:.3}
-.empty p{font-size:12px;font-family:'DM Mono',monospace;opacity:.35;max-width:280px;line-height:1.8}
+.empty p{font-size:12px;font-family:'Fira Code',monospace;opacity:.35;max-width:280px;line-height:1.8}
 
 /* SCHEDULE BLOCK (stacked) */
 .sched-block{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:0 2px 8px var(--shadow)}
 .sched-hdr{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border);background:var(--surface2)}
-.sched-num{font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--acc)}
-.sched-meta{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);flex:1}
-.expbtn{background:var(--surface);border:1px solid var(--border);border-radius:5px;color:var(--text);cursor:pointer;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;padding:4px 9px;text-transform:uppercase;transition:all .2s;flex-shrink:0}
+.sched-num{font-family:'Fira Code',monospace;font-size:12px;font-weight:700;color:var(--acc)}
+.sched-meta{font-family:'Fira Code',monospace;font-size:11px;color:var(--muted);flex:1}
+.expbtn{background:var(--surface);border:1px solid var(--border);border-radius:5px;color:var(--text);cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;padding:4px 9px;text-transform:uppercase;transition:all .2s;flex-shrink:0}
 .expbtn:hover{border-color:var(--green);color:var(--green)}
 .expall-wrap{display:flex;justify-content:flex-end}
-.expall-btn{background:var(--acc);border:none;border-radius:var(--rs);color:#fff;cursor:pointer;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;letter-spacing:.5px;padding:7px 14px;text-transform:uppercase;transition:all .2s}
+.expall-btn{background:var(--acc);border:none;border-radius:var(--rs);color:#fff;cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;letter-spacing:.5px;padding:7px 14px;text-transform:uppercase;transition:all .2s}
 .expall-btn:hover{background:var(--acc-h);box-shadow:0 4px 12px rgba(108,99,255,.3)}
 
 /* STATS */
 .sbar{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px 14px;border-bottom:1px solid var(--border)}
 .scard{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:9px 11px}
 .slbl{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
-.sval{font-family:'DM Mono',monospace;font-size:18px;font-weight:500;color:var(--acc)}
-.ssub{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:1px}
+.sval{font-family:'Fira Code',monospace;font-size:18px;font-weight:500;color:var(--acc)}
+.ssub{font-size:9px;color:var(--muted);font-family:'Fira Code',monospace;margin-top:1px}
 .hvis{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:7px}
 .hrow{display:flex;align-items:center;gap:8px}
-.hname{width:70px;font-weight:700;font-size:13px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hname{width:80px;font-weight:700;font-size:14px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hbarw{flex:1;background:var(--surface2);border-radius:100px;height:5px;overflow:hidden}
 .hbar{height:100%;border-radius:100px;transition:width .5s}
-.hnum{font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);width:34px;text-align:right;flex-shrink:0}
-.hbk{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted2);width:150px;text-align:right;flex-shrink:0}
+.hnum{font-family:'Fira Code',monospace;font-size:12px;color:var(--muted);width:34px;text-align:right;flex-shrink:0}
+.hbk{font-family:'Fira Code',monospace;font-size:10px;color:var(--muted2);width:150px;text-align:right;flex-shrink:0}
 
 /* TABLE */
 .twrap{overflow:auto}
 table{border-collapse:collapse;width:100%;min-width:500px;background:var(--surface)}
-th{background:var(--surface2);font-family:'DM Mono',monospace;font-size:10px;font-weight:600;padding:5px 2px;text-align:center;color:var(--muted);border-bottom:1px solid var(--border);border-right:1px solid var(--border);white-space:nowrap}
+th{background:var(--surface2);font-family:'Fira Code',monospace;font-size:10px;font-weight:600;padding:5px 2px;text-align:center;color:var(--muted);border-bottom:1px solid var(--border);border-right:1px solid var(--border);white-space:nowrap}
 th.wcol{text-align:left;padding-left:9px;min-width:90px;position:sticky;left:0;z-index:3}
 th.scol{border-left:2px solid var(--border);min-width:48px}
 th.weh{background:var(--acc-dim);color:var(--acc)}
 td{padding:0;border:1px solid var(--border);text-align:center;vertical-align:middle}
 td.wn{font-weight:700;font-size:13px;padding:5px 9px;text-align:left;background:var(--surface);border-right:2px solid var(--border);white-space:nowrap;position:sticky;left:0;z-index:2}
-.cell{display:flex;align-items:center;justify-content:center;height:30px;font-family:'DM Mono',monospace;font-size:11px;font-weight:700;cursor:pointer;transition:filter .1s;position:relative}
+.cell{display:flex;align-items:center;justify-content:center;height:32px;font-family:'Fira Code',monospace;font-size:12px;font-weight:700;cursor:pointer;transition:filter .1s;position:relative}
 .cell:hover{filter:brightness(.93)}
 /* cell types */
 .cd  {background:var(--green-bg);  color:var(--green)}
@@ -209,20 +209,20 @@ td.wn{font-weight:700;font-size:13px;padding:5px 9px;text-align:left;background:
 [data-theme="dark"] .cuwe{background:var(--blue-dim);  color:#60a5fa}
 [data-theme="dark"] .coff{background:rgba(234,88,12,.15);color:#fb923c}
 td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
-.sv{font-family:'DM Mono',monospace;font-size:12px;font-weight:700;padding:5px 7px}
+.sv{font-family:'Fira Code',monospace;font-size:12px;font-weight:700;padding:5px 7px}
 
 /* CELL POPUP MENU */
 .cell-menu{position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);box-shadow:0 8px 24px rgba(0,0,0,.18);padding:4px;display:flex;flex-direction:column;gap:2px;min-width:120px}
-.cmitem{background:none;border:none;border-radius:4px;color:var(--text);cursor:pointer;font-family:'DM Mono',monospace;font-size:12px;padding:5px 9px;text-align:left;transition:background .1s;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.cmitem{background:none;border:none;border-radius:4px;color:var(--text);cursor:pointer;font-family:'Fira Code',monospace;font-size:12px;padding:5px 9px;text-align:left;transition:background .1s;display:flex;align-items:center;gap:6px;white-space:nowrap}
 .cmitem:hover{background:var(--surface2)}
 .cmitem .dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
 
 /* LEGEND */
 .legrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:9px 14px;border-top:1px solid var(--border)}
-.legitem{display:flex;align-items:center;gap:4px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text2)}
-.legdot{width:13px;height:13px;border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-family:'DM Mono',monospace;font-weight:700}
+.legitem{display:flex;align-items:center;gap:4px;font-size:11px;font-family:'Fira Code',monospace;color:var(--text2)}
+.legdot{width:13px;height:13px;border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-family:'Fira Code',monospace;font-weight:700}
 
-.alert{background:var(--red-bg);border:1px solid var(--red);border-radius:var(--r);color:var(--red);padding:11px 14px;font-size:10px;font-family:'DM Mono',monospace}
+.alert{background:var(--red-bg);border:1px solid var(--red);border-radius:var(--r);color:var(--red);padding:11px 14px;font-size:10px;font-family:'Fira Code',monospace}
 [data-theme="dark"] .alert{background:var(--red-dim)}
 .spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -231,9 +231,9 @@ td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 
 /* ── MOBILE TOGGLE ─────────────────────────────────────────────── */
-.mob-toggle{display:none;background:var(--acc);border:none;border-radius:var(--rs);color:#fff;cursor:pointer;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;padding:6px 12px;white-space:nowrap;flex-shrink:0}
+.mob-toggle{display:none;background:var(--acc);border:none;border-radius:var(--rs);color:#fff;cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;padding:6px 12px;white-space:nowrap;flex-shrink:0}
 .mob-toggle:hover{background:var(--acc-h)}
-.mob-close{display:none;position:sticky;top:0;z-index:101;background:var(--surface);border:none;border-bottom:1px solid var(--border);color:var(--text);cursor:pointer;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;padding:12px 14px;text-align:right;width:100%}
+.mob-close{display:none;position:sticky;top:0;z-index:101;background:var(--surface);border:none;border-bottom:1px solid var(--border);color:var(--text);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;padding:12px 14px;text-align:right;width:100%}
 .mob-close:hover{color:var(--acc)}
 .mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99}
 
@@ -250,7 +250,7 @@ td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
 
   .mob-toggle{display:block}
 
-  .app{grid-template-columns:1fr;height:calc(100vh - 62px)}
+  .app{grid-template-columns:1fr}
 
   .sidebar{position:fixed;top:0;left:0;right:0;bottom:0;z-index:100;transform:translateX(-100%);transition:transform .25s ease;border-right:none;overflow-y:auto}
   .sidebar.open{transform:translateX(0)}
@@ -323,21 +323,21 @@ td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
 .login-overlay{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px}
 .login-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:28px 24px;max-width:380px;width:92%;box-shadow:0 8px 32px var(--shadow)}
 .login-tabs{display:flex;gap:0;margin-bottom:16px;border:1px solid var(--border);border-radius:var(--rs);overflow:hidden}
-.login-tab{flex:1;background:var(--surface2);border:none;color:var(--muted);cursor:pointer;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;padding:8px;transition:all .2s}
+.login-tab{flex:1;background:var(--surface2);border:none;color:var(--muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;padding:8px;transition:all .2s}
 .login-tab.active{background:var(--acc);color:#fff}
-.login-btn{background:var(--acc);border:none;border-radius:var(--rs);color:#fff;cursor:pointer;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;padding:10px;width:100%;margin-top:14px;transition:all .2s}
+.login-btn{background:var(--acc);border:none;border-radius:var(--rs);color:#fff;cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;padding:10px;width:100%;margin-top:14px;transition:all .2s}
 .login-btn:hover{background:var(--acc-h)}.login-btn:disabled{opacity:.5;cursor:not-allowed}
-.login-err{color:var(--red);font-size:10px;font-family:'DM Mono',monospace;margin-top:6px;min-height:14px}
+.login-err{color:var(--red);font-size:10px;font-family:'Fira Code',monospace;margin-top:6px;min-height:14px}
 .login-local{text-align:center;margin-top:12px}
-.login-local button{background:none;border:none;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:10px;text-decoration:underline}
+.login-local button{background:none;border:none;color:var(--muted);cursor:pointer;font-family:'Fira Code',monospace;font-size:10px;text-decoration:underline}
 .login-local button:hover{color:var(--acc)}
 
 /* ── TEAM BAR ────────────────────────────────────────────── */
-.team-bar{background:var(--acc-dim);border-bottom:1px solid var(--border);padding:5px 14px;display:flex;align-items:center;gap:8px;font-family:'DM Mono',monospace;font-size:10px;flex-wrap:wrap}
+.team-bar{background:var(--acc-dim);border-bottom:1px solid var(--border);padding:5px 14px;display:flex;align-items:center;gap:8px;font-family:'Fira Code',monospace;font-size:10px;flex-wrap:wrap}
 .team-bar .tbn{font-weight:700;color:var(--acc)}.team-bar .tmn{color:var(--text2)}
 .team-bar .tlink{color:var(--muted);cursor:pointer;text-decoration:underline;font-size:9px}
 .team-bar .tlink:hover{color:var(--acc)}
-.team-bar .tlogout{margin-left:auto;background:none;border:1px solid var(--border);border-radius:var(--rs);color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:9px;padding:2px 7px;transition:all .15s}
+.team-bar .tlogout{margin-left:auto;background:none;border:1px solid var(--border);border-radius:var(--rs);color:var(--muted);cursor:pointer;font-family:'Fira Code',monospace;font-size:9px;padding:2px 7px;transition:all .15s}
 .team-bar .tlogout:hover{border-color:var(--red);color:var(--red)}
 .team-bar .tsync{color:var(--teal);font-size:9px}
 
@@ -346,21 +346,28 @@ td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
 [data-theme="dark"] .ap-banner{background:var(--green-dim)}
 .ap-banner .ab-icon{font-size:18px}.ap-banner .ab-text{flex:1}
 .ap-banner .ab-title{font-weight:700;font-size:13px;color:var(--green)}
-.ap-banner .ab-meta{font-family:'DM Mono',monospace;font-size:9px;color:var(--text2);margin-top:1px}
-.ap-banner .ab-btn{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);cursor:pointer;font-family:'DM Mono',monospace;font-size:9px;padding:4px 8px;transition:all .15s}
+.ap-banner .ab-meta{font-family:'Fira Code',monospace;font-size:9px;color:var(--text2);margin-top:1px}
+.ap-banner .ab-btn{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);cursor:pointer;font-family:'Fira Code',monospace;font-size:9px;padding:4px 8px;transition:all .15s}
 .ap-banner .ab-btn:hover{border-color:var(--acc);color:var(--acc)}
+
+/* ── LOCAL MODE BAR ──────────────────────────────────────── */
+.local-bar{background:var(--yellow-dim);border-bottom:1px solid var(--border);padding:5px 14px;display:flex;align-items:center;gap:8px;font-family:'Fira Code',monospace;font-size:10px;flex-wrap:wrap}
+.local-bar .lbn{font-weight:700;color:var(--yellow)}
+.local-bar .lmn{color:var(--text2)}
+.local-bar .llogin{margin-left:auto;background:none;border:1px solid var(--border);border-radius:var(--rs);color:var(--muted);cursor:pointer;font-family:'Fira Code',monospace;font-size:9px;padding:2px 9px;transition:all .15s}
+.local-bar .llogin:hover{border-color:var(--acc);color:var(--acc)}
 
 /* ── TUTORIAL ────────────────────────────────────────────── */
 .tut-overlay{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center}
 .tut-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:28px 24px;max-width:460px;width:92%;box-shadow:0 12px 40px rgba(0,0,0,.2);position:relative}
 .tut-step{text-align:center}.tut-icon{font-size:38px;margin-bottom:8px}
 .tut-title{font-size:16px;font-weight:800;margin-bottom:6px}
-.tut-desc{font-size:11px;color:var(--text2);line-height:1.8;margin-bottom:14px;font-family:'DM Mono',monospace;text-align:left}
+.tut-desc{font-size:11px;color:var(--text2);line-height:1.8;margin-bottom:14px;font-family:'Fira Code',monospace;text-align:left}
 .tut-dots{display:flex;justify-content:center;gap:6px;margin-bottom:12px}
 .tut-dot{width:8px;height:8px;border-radius:50%;background:var(--border2);transition:all .2s}
 .tut-dot.active{background:var(--acc);transform:scale(1.2)}
 .tut-btns{display:flex;gap:8px;justify-content:center}
-.tut-btn{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);cursor:pointer;font-family:'Syne',sans-serif;font-size:11px;font-weight:600;padding:6px 14px;transition:all .2s}
+.tut-btn{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;padding:6px 14px;transition:all .2s}
 .tut-btn:hover{border-color:var(--acc);color:var(--acc)}
 .tut-btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
 .tut-btn.primary:hover{background:var(--acc-h)}
@@ -430,6 +437,11 @@ td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
   <span class="tlink" onclick="copyTeamLink()" title="Kopiuj link zaproszenia">📋 Kopiuj link</span>
   <button class="tlogout" onclick="doLogout()">Wyloguj</button>
 </div>
+<div class="local-bar" id="localBar" style="display:none">
+  <span class="lbn">Tryb lokalny</span>
+  <span class="lmn">Dane zapisywane tylko w przeglądarce</span>
+  <button class="llogin" onclick="returnToLogin()">🔑 Zaloguj do zespołu</button>
+</div>
 <div class="app">
 <aside class="sidebar" id="sidebar">
   <button class="mob-close" id="mobClose" onclick="togSidebar()">✕ Zamknij</button>
@@ -464,7 +476,7 @@ td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
   <div class="spanel" id="pwe">
     <div>
       <div class="sec">Tryb weekendów</div>
-      <p style="font-size:9px;color:var(--muted);line-height:1.7;margin-bottom:9px;font-family:'DM Mono',monospace">
+      <p style="font-size:9px;color:var(--muted);line-height:1.7;margin-bottom:9px;font-family:'Fira Code',monospace">
         <b style="color:#1a7fa8">24h</b> całodobowa · <b style="color:var(--green)">D+N</b> dzień+noc · <b style="color:var(--muted)">Wolny</b>
       </p>
       <div class="wegrid" id="wegrid"></div>
@@ -474,17 +486,17 @@ td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
     <div>
       <div class="sec">Generator</div>
       <div style="display:flex;flex-direction:column;gap:8px">
-        <label class="chkr"><input type="checkbox" id="chkN"><span class="chkl">Max 3 nocki z rzędu</span></label>
-        <label class="chkr"><input type="checkbox" id="chkD"><span class="chkl">Max 3 dniówki z rzędu</span></label>
+        <label class="chkr"><input type="checkbox" id="chkN" checked><span class="chkl">Max 3 nocki z rzędu</span></label>
+        <label class="chkr"><input type="checkbox" id="chkD" checked><span class="chkl">Max 3 dniówki z rzędu</span></label>
         <div><label>Liczba grafików</label>
-          <select id="selC"><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option><option value="10">10</option></select>
+          <select id="selC"><option value="1" selected>1</option><option value="3">3</option><option value="5">5</option><option value="10">10</option></select>
         </div>
         <div><label>Max odchylenie godzin</label><input type="number" id="selT" value="24" min="0" max="120"></div>
       </div>
     </div>
     <div>
       <div class="sec">Legenda kolorów</div>
-      <div style="display:flex;flex-direction:column;gap:4px;font-family:'DM Mono',monospace;font-size:9px;color:var(--text2)">
+      <div style="display:flex;flex-direction:column;gap:4px;font-family:'Fira Code',monospace;font-size:9px;color:var(--text2)">
         <div style="display:flex;align-items:center;gap:6px"><div style="width:20px;height:14px;border-radius:2px;background:var(--green-bg);border:1px solid var(--green);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--green)">D</div>Dniówka 12h</div>
         <div style="display:flex;align-items:center;gap:6px"><div style="width:20px;height:14px;border-radius:2px;background:var(--yellow-bg);border:1px solid var(--yellow);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--yellow)">N</div>Nocka 12h</div>
         <div style="display:flex;align-items:center;gap:6px"><div style="width:20px;height:14px;border-radius:2px;background:#d6eef8;border:1px solid #1a7fa8;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#1a7fa8">24h</div>Weekend</div>
@@ -501,8 +513,8 @@ td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
 </aside>
 <div class="mob-overlay" id="mobOverlay" onclick="togSidebar()"></div>
 <main class="main">
+  <div id="approvedBanner"></div>
   <div class="main-inner" id="mainInner">
-    <div id="approvedBanner"></div>
     <div class="empty">
       <div class="empty-icon">📅</div>
       <h2>Brak grafiku</h2>
@@ -568,7 +580,7 @@ function saveW(){
   if(teamSession&&db){saveToFirestore();return;}
   try{
     localStorage.setItem(LS,JSON.stringify({
-      workers:workers.map(w=>({id:w.id,name:w.name,color:w.color,days:w.days||{}})),
+      workers:workers.map(w=>({id:w.id,name:w.name,color:w.color,days:w.days||{},minDays2:!!w.minDays2})),
       ctr:wCtr
     }));
     toast('✓ Zapisano '+workers.length+' pracowników');
@@ -599,7 +611,33 @@ function showP(id,btn){
 }
 
 // ── MONTH / WEEKEND ────────────────────────────────────────────────
-function onMC(){buildWeModes();renderWorkers();renderWEGrid();autoSave();}
+function onMC(){
+  // Wyjdź z widoku zatwierdzonego przy zmianie miesiąca
+  if(_approvedViewActive){_approvedViewActive=null;_preShowState=null;_approvedViewReadOnly=false;}
+  schedules=[];window._schedMeta=null;
+  buildWeModes();renderWorkers();renderWEGrid();autoSave();
+  renderApprovedBanner(_cachedAppSch);
+  // Automatycznie pokaż zatwierdzony grafik dla nowego miesiąca
+  const {y,m}=ym();const mk=y+'-'+m;
+  const ap=_cachedAppSch&&_cachedAppSch[mk];
+  if(ap&&!ap.revoked&&teamSession&&db){
+    showApprovedSchedule(mk);
+  } else {
+    const ps=_cachedPendSch&&_cachedPendSch[mk];
+    if(ps&&ps.length&&teamSession){
+      schedules=ps.map(s=>s.shifts||s);
+      window._schedMeta=(_cachedSchedMeta&&_cachedSchedMeta[mk])||null;
+      if(window._schedMeta){
+        const {y:sy,m:sm,fallbackUsed,firstCount}=window._schedMeta;
+        renderAll(sy,sm,fallbackUsed||false,firstCount||schedules.length);
+      } else {
+        document.getElementById('mainInner').innerHTML='<div class="empty"><div class="empty-icon">📅</div><h2>Brak grafiku</h2><p>Skonfiguruj pracowników, oznacz urlopy i kliknij „Generuj Grafik"</p></div>';
+      }
+    } else {
+      document.getElementById('mainInner').innerHTML='<div class="empty"><div class="empty-icon">📅</div><h2>Brak grafiku</h2><p>Skonfiguruj pracowników, oznacz urlopy i kliknij „Generuj Grafik"</p></div>';
+    }
+  }
+}
 function buildWeModes(){
   const {y,m}=ym();const n=dim(y,m);const nx={};
   for(let d=1;d<=n;d++)if(dow(y,m,d)===6){const s=dstr(y,m,d);nx[s]=weModes[s]||'24h';}
@@ -627,7 +665,7 @@ function renderWEGrid(){
 // ── WORKERS ────────────────────────────────────────────────────────
 function addW(name){
   const id=wCtr++;
-  workers.push({id,name:name||`Pracownik ${id+1}`,color:COLORS[workers.length%COLORS.length],_open:false,days:{}});
+  workers.push({id,name:name||`Pracownik ${id+1}`,color:COLORS[workers.length%COLORS.length],_open:false,days:{},minDays2:false});
   cmode[id]='vac';renderWorkers();autoSave();
 }
 function delW(id){workers=workers.filter(w=>w.id!==id);renderWorkers();autoSave();}
@@ -651,7 +689,13 @@ function buildWCard(w,y,m){
     <button class="wdel" onclick="delW(${w.id})">×</button>
   </div>${body}`;
 }
-function buildWOpts(w){return '';}
+function buildWOpts(w){
+  return `<div class="wopts">
+    <label class="chkr"><input type="checkbox" ${w.minDays2?'checked':''} onchange="workers.find(x=>x.id===${w.id}).minDays2=this.checked;autoSave()">
+    <div><span class="chkl">Min. 2 dniówki Pn–Pt / tydzień</span>
+    <div class="chkn">Algorytm priorytetowo przydzieli min. 2 dniówki tygodniowo</div></div></label>
+  </div>`;
+}
 
 function togW(id){
   const w=workers.find(x=>x.id===id);if(!w)return;
@@ -662,11 +706,11 @@ function togW(id){
 
 // ── MINI CALENDAR ─────────────────────────────────────────────────
 const CM={
-  vac:  {l:'🏖 Urlop',      h:'Urlop: Pn-Pt +8h; weekend 0h. Kliknij ponownie = odznacz'},
-  off:  {l:'🚫 Niedostępny',h:'Niedostępny: nie można przypisać żadnej zmiany, 0h'},
-  'no-d':{l:'☽ Tylko noc', h:'Blokada dniówki. Kliknij ponownie = odznacz'},
-  'no-n':{l:'☀ Tylko dzień',h:'Blokada nocki. Kliknij ponownie = odznacz'},
-  clr:  {l:'✕ Wyczyść',    h:'Usuwa oznaczenie klikniętego dnia'},
+  vac:  {l:'🏖 Urlop',       h:'Urlop: Pn-Pt +8h; weekend 0h. Kliknij ponownie = odznacz'},
+  off:  {l:'🚫 Niedostępny', h:'Niedostępny: nie można przypisać żadnej zmiany, 0h'},
+  'no-d':{l:'🌙 Bez dniówki',h:'Blokada dniówki — pracownik może dostać tylko nocki. Kliknij ponownie = odznacz'},
+  'no-n':{l:'☀ Bez nocki',   h:'Blokada nocki — pracownik może dostać tylko dniówki. Kliknij ponownie = odznacz'},
+  clr:  {l:'✕ Wyczyść',     h:'Usuwa oznaczenie klikniętego dnia'},
 };
 function buildCal(w,y,m){
   const n=dim(y,m);const off=(dow(y,m,1)+6)%7;
@@ -695,8 +739,8 @@ function buildCal(w,y,m){
     <div class="cli"><div class="clidot" style="background:var(--purple-bg);border-color:var(--purple)"></div>Urlop Pn-Pt</div>
     <div class="cli"><div class="clidot" style="background:var(--blue-bg);border-color:var(--blue)"></div>Urlop Sb-Nd</div>
     <div class="cli"><div class="clidot" style="background:var(--gray-bg);border-color:var(--gray)"></div>Niedostępny</div>
-    <div class="cli"><div class="clidot" style="background:var(--yellow-bg);border-color:var(--yellow)"></div>Tylko noc</div>
-    <div class="cli"><div class="clidot" style="background:var(--orange-bg);border-color:var(--orange)"></div>Tylko dzień</div>
+    <div class="cli"><div class="clidot" style="background:var(--yellow-bg);border-color:var(--yellow)"></div>Bez dniówki</div>
+    <div class="cli"><div class="clidot" style="background:var(--orange-bg);border-color:var(--orange)"></div>Bez nocki</div>
   </div>`;
 }
 function setCM(wid,mode){
@@ -844,10 +888,17 @@ function canAssign(w,shift,sched,cfg){
 
 function wScore(w,shift,sched,cfg){
   const wid=w.id;const q=cfg.quotas[wid];
-  // Sortuj po tym jak daleko pracownik jest od swojej kwoty
-  // (kto ma mniej % wypełnionego celu, ten dostaje priorytet)
   const myH=sched.filter(e=>e.wid===wid).reduce((s,e)=>s+e.hours,0);
   let score=myH/q.target; // 0..1, niższe = bardziej potrzebuje
+
+  // minDays2: silny priorytet dla dniówek Pn-Pt gdy pracownik nie ma jeszcze 2 w tygodniu
+  if(w.minDays2&&shift.type==='dzien'){
+    const wd=new Date(shift.date).getDay();
+    if(wd>=1&&wd<=5){
+      const cnt=weekOfficeCnt(wid,shift.date,sched);
+      if(cnt<2)score-=1.5;
+    }
+  }
 
   score+=(Math.random()-.5)*0.15;
   return score;
@@ -871,6 +922,8 @@ function backtrack(shifts,idx,sched,results,limit,cfg){
 // ── RUNNER ────────────────────────────────────────────────────────
 function runGen(){
   if(!workers.length){alert('Dodaj co najmniej 1 pracownika!');return;}
+  const {y,m}=ym();const mk=y+'-'+m;
+  function _doGen(){
   const btn=document.getElementById('genBtn');
   btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Generowanie...';
   setTimeout(()=>{
@@ -926,6 +979,7 @@ function runGen(){
         document.getElementById('mainInner').innerHTML='<div class="alert">⚠ Nie udało się wygenerować grafiku. Zwiększ tolerancję godzin lub zmniejsz ograniczenia.</div>';
       } else {
         renderAll(y,m,fallbackUsed,results1.length);
+        autoSave();
       }
     }catch(e){document.getElementById('mainInner').innerHTML=`<div class="alert">⚠ Błąd: ${e.message}</div>`;}
     btn.disabled=false;btn.innerHTML='⚡ Generuj Grafik';
@@ -935,6 +989,9 @@ function runGen(){
       if(sb.classList.contains('open'))togSidebar();
     }
   },30);
+  } // end _doGen
+
+  _doGen();
 }
 
 // ── HOURS CALC ────────────────────────────────────────────────────
@@ -950,7 +1007,7 @@ function renderAll(y,m,fallbackUsed=false,firstCount=schedules.length){
   const mi=document.getElementById('mainInner');
   let notice='';
   if(fallbackUsed){
-    notice=`<div style="background:var(--yellow-bg);border:1px solid var(--yellow);border-radius:var(--r);padding:10px 14px;font-size:10px;font-family:'DM Mono',monospace;color:var(--yellow);margin-bottom:2px">
+    notice=`<div style="background:var(--yellow-bg);border:1px solid var(--yellow);border-radius:var(--r);padding:10px 14px;font-size:10px;font-family:'Fira Code',monospace;color:var(--yellow);margin-bottom:2px">
       ⚠ Część grafików (${schedules.length-firstCount} szt.) wygenerowana z podziałem weekendów na zmiany 12h zamiast 24h — oryginalne ustawienia dały tylko ${firstCount} wynik(ów).
     </div>`;
   }
@@ -981,14 +1038,15 @@ function renderSched(idx,y,m){
   const meta=window._schedMeta||{};
   const isSplit=meta.fallbackUsed&&idx>=meta.firstCount;
   const modeBadge=isSplit
-    ? `<span style="background:var(--yellow-bg);border:1px solid var(--yellow);color:var(--yellow);font-family:'DM Mono',monospace;font-size:7px;padding:2px 5px;border-radius:3px;font-weight:700">WE: 12h split</span>`
-    : `<span style="background:#d6eef8;border:1px solid #1a7fa8;color:#1a7fa8;font-family:'DM Mono',monospace;font-size:7px;padding:2px 5px;border-radius:3px;font-weight:700">WE: 24h</span>`;
+    ? `<span style="background:var(--yellow-bg);border:1px solid var(--yellow);color:var(--yellow);font-family:'Fira Code',monospace;font-size:7px;padding:2px 5px;border-radius:3px;font-weight:700">WE: 12h split</span>`
+    : `<span style="background:#d6eef8;border:1px solid #1a7fa8;color:#1a7fa8;font-family:'Fira Code',monospace;font-size:7px;padding:2px 5px;border-radius:3px;font-weight:700">WE: 24h</span>`;
   const hdr=`<div class="sched-hdr">
     <span class="sched-num">Grafik ${idx+1}</span>
     ${modeBadge}
     <span class="sched-meta">${MONTHS[m]} ${y} · śr. ${avgH}h · odch. ${maxH-minH}h · ${sched.length} zmian</span>
     <button class="expbtn" onclick="exportXL(${y},${m},${idx})">⬇ Excel</button>
-    ${teamSession?`<button class="expbtn" style="border-color:var(--green);color:var(--green)" onclick="approveSchedule(${idx})">✓ Zatwierdź</button>`:''}
+    ${(()=>{const {y:ry,m:rm}=ym();const rmk=ry+'-'+rm;const aa=_cachedAppSch&&_cachedAppSch[rmk]&&!_cachedAppSch[rmk].revoked;return teamSession&&!_approvedViewReadOnly&&!aa;})()
+      ?`<button class="expbtn" style="border-color:var(--green);color:var(--green)" onclick="approveSchedule(${idx})">✓ Zatwierdź</button>`:''}
   </div>`;
 
   let bars=`<div class="hvis"><div class="sec" style="margin-bottom:3px">Godziny pracowników</div>`;
@@ -1062,6 +1120,7 @@ const CELL_TYPES=[
 let _menuCtx=null;
 function openCellMenu(evt,schedIdx,wid,date){
   evt.stopPropagation();
+  if(_approvedViewReadOnly)return; // zatwierdzone – edycja zablokowana
   const menu=document.getElementById('cellMenu');
   _menuCtx={schedIdx,wid,date};
   const {y,m}=ym();
@@ -1105,6 +1164,7 @@ function applyCellType(type){
   }
   document.getElementById('cellMenu').style.display='none';
   renderSched(schedIdx,y,m);
+  autoSave();
 }
 document.addEventListener('click',()=>{document.getElementById('cellMenu').style.display='none';});
 
@@ -1479,6 +1539,8 @@ const FIREBASE_CONFIG = {
 
 // ── FIREBASE STATE ───────────────────────────────────────────────
 let db=null, teamSession=null, unsubscribe=null, _skipSnap=false;
+let _approvedViewActive=null, _preShowState=null, _cachedAppSch=null, _approvedViewReadOnly=false;
+let _cachedPendSch=null, _cachedSchedMeta=null;
 
 function initFirebase(){
   if(FIREBASE_CONFIG.apiKey.startsWith('TWOJ')){return false;}
@@ -1567,7 +1629,8 @@ function doLogout(){
   workers=[];schedules=[];weModes={};wCtr=0;
   document.getElementById('loginOverlay').style.display='';
   document.getElementById('teamBar').style.display='none';
-  document.getElementById('mainInner').innerHTML='<div id="approvedBanner"></div><div class="empty"><div class="empty-icon">📅</div><h2>Brak grafiku</h2><p>Zaloguj się do zespołu aby rozpocząć.</p></div>';
+  document.getElementById('approvedBanner').innerHTML='';
+  document.getElementById('mainInner').innerHTML='<div class="empty"><div class="empty-icon">📅</div><h2>Brak grafiku</h2><p>Zaloguj się do zespołu aby rozpocząć.</p></div>';
   document.getElementById('wlist').innerHTML='';
 }
 
@@ -1579,9 +1642,21 @@ function copyTeamLink(){
 
 function startLocalMode(){
   document.getElementById('loginOverlay').style.display='none';
+  // Pokaż pasek trybu lokalnego tylko gdy Firebase jest dostępny (jest do czego wracać)
+  if(db)document.getElementById('localBar').style.display='';
   ['Anna','Bartosz','Celina','Dawid'].forEach(n=>addW(n));
   buildWeModes();renderWEGrid();
   if(!localStorage.getItem('sm_tut_done'))showTutorial();
+}
+
+function returnToLogin(){
+  workers=[];schedules=[];weModes={};wCtr=0;
+  document.getElementById('localBar').style.display='none';
+  document.getElementById('approvedBanner').innerHTML='';
+  document.getElementById('mainInner').innerHTML='<div class="empty"><div class="empty-icon">📅</div><h2>Brak grafiku</h2><p>Skonfiguruj pracowników, oznacz urlopy i kliknij „Generuj Grafik"</p></div>';
+  document.getElementById('wlist').innerHTML='';
+  document.getElementById('loginOverlay').style.display='';
+  buildWeModes();renderWEGrid();
 }
 
 // ── APP SHOW ─────────────────────────────────────────────────────
@@ -1611,17 +1686,31 @@ async function loadTeamData(){
 }
 
 function applyTeamData(d){
-  if(d.workers){
-    workers=d.workers.map(w=>({...w,_open:false,days:w.days||{}}));
-    workers.forEach(w=>{cmode[w.id]=cmode[w.id]||'vac';});
+  _cachedAppSch=d.approvedSchedules||null;
+  _cachedPendSch=d.pendingSchedules||null;
+  _cachedSchedMeta=d.schedMeta||null;
+  // Guard: during approved-view mode don't overwrite workers/schedules
+  if(!_approvedViewActive){
+    if(d.workers){
+      workers=d.workers.map(w=>({...w,_open:false,days:w.days||{}}));
+      workers.forEach(w=>{cmode[w.id]=cmode[w.id]||'vac';});
+    }
+    wCtr=d.wCtr||workers.length;
+    if(d.weModes)weModes=d.weModes;
+    if(d.settings){
+      if(d.settings.month)document.getElementById('selM').value=d.settings.month;
+      if(d.settings.year)document.getElementById('selY').value=d.settings.year;
+    }
+    const {y:cy,m:cm}=ym();const cmk=cy+'-'+cm;
+    const ps=d.pendingSchedules&&d.pendingSchedules[cmk];
+    const needsLoad=!schedules.length&&ps&&ps.length;
+    if(needsLoad){schedules=ps.map(s=>s.shifts||s);window._schedMeta=(d.schedMeta&&d.schedMeta[cmk])||null;}
+    buildWeModes();renderWorkers();renderWEGrid();
+    if(needsLoad&&window._schedMeta){
+      const {y,m,fallbackUsed,firstCount}=window._schedMeta;
+      renderAll(y,m,fallbackUsed||false,firstCount||schedules.length);
+    }
   }
-  wCtr=d.wCtr||workers.length;
-  if(d.weModes)weModes=d.weModes;
-  if(d.settings){
-    if(d.settings.month)document.getElementById('selM').value=d.settings.month;
-    if(d.settings.year)document.getElementById('selY').value=d.settings.year;
-  }
-  buildWeModes();renderWorkers();renderWEGrid();
   renderApprovedBanner(d.approvedSchedules);
 }
 
@@ -1631,11 +1720,22 @@ async function saveToFirestore(){
   ss.textContent='⟳ Zapis...';
   _skipSnap=true;
   try{
-    const {y,m}=ym();
-    await db.collection('teams').doc(teamSession.teamId).update({
-      workers:workers.map(w=>({id:w.id,name:w.name,color:w.color,days:w.days||{}})),
+    const {y,m}=ym();const mk=y+'-'+m;
+    const upd={
+      workers:workers.map(w=>({id:w.id,name:w.name,color:w.color,days:w.days||{},minDays2:!!w.minDays2})),
       wCtr,weModes,settings:{month:m,year:y}
-    });
+    };
+    if(schedules.length&&!_approvedViewActive){
+      upd['pendingSchedules.'+mk]=schedules.map(s=>({shifts:s}));
+      upd['schedMeta.'+mk]=window._schedMeta||null;
+    }
+    await db.collection('teams').doc(teamSession.teamId).update(upd);
+    if(schedules.length&&!_approvedViewActive){
+      if(!_cachedPendSch)_cachedPendSch={};
+      _cachedPendSch[mk]=schedules.map(s=>({shifts:s}));
+      if(!_cachedSchedMeta)_cachedSchedMeta={};
+      _cachedSchedMeta[mk]=window._schedMeta||null;
+    }
     ss.textContent='✓ Zapisano';
     setTimeout(()=>{if(ss.textContent==='✓ Zapisano')ss.textContent='';},2000);
   }catch(e){ss.textContent='✗ Błąd zapisu';console.error(e);_skipSnap=false;}
@@ -1667,10 +1767,20 @@ function startRealtimeSync(){
 // ── SCHEDULE APPROVAL ────────────────────────────────────────────
 async function approveSchedule(idx){
   if(!teamSession||!db)return;
+  const {y,m}=ym();const mk=y+'-'+m;
+  // Sprawdź czy inny użytkownik już zatwierdził
+  try{
+    const chk=await db.collection('teams').doc(teamSession.teamId).get();
+    if(chk.exists){
+      const ap=(chk.data().approvedSchedules||{})[mk];
+      if(ap&&!ap.revoked&&ap.approvedBy!==teamSession.memberName){
+        alert(`⚠ Grafik ${MONTHS[m]} ${y} jest już zatwierdzony przez ${ap.approvedBy}.\nTylko ta osoba może cofnąć lub zastąpić zatwierdzenie.`);
+        return;
+      }
+    }
+  }catch(e){console.error(e);}
   if(!confirm('Zatwierdź ten grafik? Będzie widoczny dla całego zespołu.'))return;
   const sched=schedules[idx];
-  const {y,m}=ym();
-  const mk=y+'-'+m;
   const ss=document.getElementById('syncStatus');
   ss.textContent='⟳ Zatwierdzanie...';
   try{
@@ -1679,23 +1789,30 @@ async function approveSchedule(idx){
       data:sched,
       approvedBy:teamSession.memberName,
       approvedAt:new Date().toISOString(),
-      workers:workers.map(w=>({id:w.id,name:w.name,color:w.color,days:w.days||{}})),
+      workers:workers.map(w=>({id:w.id,name:w.name,color:w.color,days:w.days||{},minDays2:!!w.minDays2})),
       weModes:{...weModes},month:m,year:y
     };
+    upd['pendingSchedules.'+mk]=null;upd['schedMeta.'+mk]=null;
     await db.collection('teams').doc(teamSession.teamId).update(upd);
     toast('✓ Grafik zatwierdzony!');
     ss.textContent='✓ Zatwierdzono';
+    schedules=[];
+    document.getElementById('mainInner').innerHTML='<div class="empty" style="opacity:.75"><div class="empty-icon">✅</div><h2>Grafik zatwierdzony</h2><p>Kliknij „Pokaż" w banerze powyżej aby wyświetlić lub edytować zatwierdzony grafik.</p></div>';
     loadTeamData();
   }catch(e){ss.textContent='✗ Błąd';console.error(e);}
 }
 
 async function removeApproval(mk){
   if(!teamSession||!db)return;
-  if(!confirm('Cofnij zatwierdzenie grafiku?'))return;
+  if(!confirm('Cofnąć zatwierdzenie? Dane grafiku zostaną zachowane (nie zostaną usunięte).'))return;
   try{
-    const upd={};upd['approvedSchedules.'+mk]=firebase.firestore.FieldValue.delete();
+    const upd={};
+    upd['approvedSchedules.'+mk+'.revoked']=true;
+    upd['approvedSchedules.'+mk+'.revokedBy']=teamSession.memberName;
+    upd['approvedSchedules.'+mk+'.revokedAt']=new Date().toISOString();
     await db.collection('teams').doc(teamSession.teamId).update(upd);
-    toast('✓ Zatwierdzenie cofnięte');loadTeamData();
+    _approvedViewReadOnly=false;
+    toast('✓ Zatwierdzenie cofnięte (dane zachowane)');loadTeamData();
   }catch(e){console.error(e);}
 }
 
@@ -1707,37 +1824,74 @@ function renderApprovedBanner(appSch){
   const mk=y+'-'+m;
   const ap=appSch[mk];
   if(!ap){c.innerHTML='';return;}
+
+  const isShowing=_approvedViewActive===mk;
+  if(ap.revoked){
+    c.innerHTML=`<div style="padding:10px 20px 0"><div class="ap-banner" style="opacity:.65;background:var(--surface2);border-color:var(--border2)">
+      <div class="ab-icon">🔓</div>
+      <div class="ab-text">
+        <div class="ab-title" style="color:var(--muted)">Zatwierdzenie cofnięte — ${MONTHS[m]} ${y}</div>
+        <div class="ab-meta">Cofnął: ${ap.revokedBy||ap.approvedBy} · Pierwotnie zatwierdził: ${ap.approvedBy}</div>
+      </div>
+      <button class="ab-btn" onclick="showApprovedSchedule('${mk}')">${isShowing?'👁 Ukryj':'👁 Pokaż (arch.)'}</button>
+    </div></div>`;
+    return;
+  }
+
   const dt=new Date(ap.approvedAt);
-  c.innerHTML=`<div class="ap-banner">
+  const isApprover=teamSession&&teamSession.memberName===ap.approvedBy;
+  c.innerHTML=`<div style="padding:10px 20px 0"><div class="ap-banner">
     <div class="ab-icon">✅</div>
     <div class="ab-text">
       <div class="ab-title">Zatwierdzony grafik — ${MONTHS[m]} ${y}</div>
       <div class="ab-meta">Zatwierdził: ${ap.approvedBy} · ${dt.toLocaleDateString('pl-PL')} ${dt.toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'})}</div>
     </div>
-    <button class="ab-btn" onclick="showApprovedSchedule('${mk}')">👁 Pokaż</button>
+    <button class="ab-btn" onclick="showApprovedSchedule('${mk}')">${isShowing?'👁 Ukryj':'👁 Pokaż'}</button>
     <button class="ab-btn" onclick="exportApprovedXL('${mk}')">⬇ Excel</button>
-    <button class="ab-btn" onclick="removeApproval('${mk}')" style="color:var(--red)">✕ Cofnij</button>
-  </div>`;
+    ${isApprover?`<button class="ab-btn" onclick="removeApproval('${mk}')" style="color:var(--red)">✕ Cofnij</button>`:''}
+  </div></div>`;
 }
 
 function showApprovedSchedule(mk){
   if(!teamSession||!db)return;
+  // Toggle: if already showing this schedule, hide it
+  if(_approvedViewActive===mk){_hideApprovedSchedule();return;}
   db.collection('teams').doc(teamSession.teamId).get().then(doc=>{
     if(!doc.exists)return;
     const ap=doc.data().approvedSchedules?.[mk];
     if(!ap)return;
-    const _w=workers,_s=schedules,_we=weModes,_wc=wCtr,_m=window._schedMeta;
+    // Persist current state so we can restore it on hide
+    _preShowState={workers:[...workers],schedules:[...schedules],weModes:{...weModes},wCtr,meta:window._schedMeta};
+    // Load approved data into working state (permanently until hidden)
     workers=ap.workers.map(w=>({...w,_open:false,days:w.days||{}}));
-    weModes=ap.weModes||{};wCtr=Math.max(...workers.map(w=>w.id),0)+1;
+    weModes=ap.weModes||{};
+    wCtr=Math.max(...workers.map(w=>w.id),0)+1;
     schedules=[ap.data];
+    _approvedViewActive=mk;
+    _approvedViewReadOnly=!ap.revoked; // edycja tylko gdy cofnięte
     document.getElementById('selM').value=ap.month;
     document.getElementById('selY').value=ap.year;
     renderAll(ap.year,ap.month,false,1);
-    workers=_w;weModes=_we;schedules=_s;wCtr=_wc;window._schedMeta=_m;
-    const {y,m}=ym();
+    renderApprovedBanner(_cachedAppSch);
+  });
+}
+
+function _hideApprovedSchedule(){
+  const state=_preShowState;
+  _approvedViewActive=null;_preShowState=null;_approvedViewReadOnly=false;
+  if(state){
+    workers=state.workers;schedules=state.schedules;
+    weModes=state.weModes;wCtr=state.wCtr;window._schedMeta=state.meta;
+  }
+  if(schedules.length&&window._schedMeta){
+    const {y,m,fallbackUsed,firstCount}=window._schedMeta;
     document.getElementById('selM').value=m;
     document.getElementById('selY').value=y;
-  });
+    renderAll(y,m,fallbackUsed||false,firstCount||schedules.length);
+  } else {
+    document.getElementById('mainInner').innerHTML='<div class="empty"><div class="empty-icon">📅</div><h2>Brak grafiku</h2><p>Skonfiguruj pracowników, oznacz urlopy i kliknij „Generuj Grafik"</p></div>';
+  }
+  if(teamSession&&db)loadTeamData();else renderApprovedBanner(_cachedAppSch);
 }
 
 function exportApprovedXL(mk){
