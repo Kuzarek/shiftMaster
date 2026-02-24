@@ -318,21 +318,118 @@ td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
   .empty h2{font-size:13px}
   .empty p{font-size:10px}
 }
+
+/* ── LOGIN ───────────────────────────────────────────────── */
+.login-overlay{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:28px 24px;max-width:380px;width:92%;box-shadow:0 8px 32px var(--shadow)}
+.login-tabs{display:flex;gap:0;margin-bottom:16px;border:1px solid var(--border);border-radius:var(--rs);overflow:hidden}
+.login-tab{flex:1;background:var(--surface2);border:none;color:var(--muted);cursor:pointer;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;padding:8px;transition:all .2s}
+.login-tab.active{background:var(--acc);color:#fff}
+.login-btn{background:var(--acc);border:none;border-radius:var(--rs);color:#fff;cursor:pointer;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;padding:10px;width:100%;margin-top:14px;transition:all .2s}
+.login-btn:hover{background:var(--acc-h)}.login-btn:disabled{opacity:.5;cursor:not-allowed}
+.login-err{color:var(--red);font-size:10px;font-family:'DM Mono',monospace;margin-top:6px;min-height:14px}
+.login-local{text-align:center;margin-top:12px}
+.login-local button{background:none;border:none;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:10px;text-decoration:underline}
+.login-local button:hover{color:var(--acc)}
+
+/* ── TEAM BAR ────────────────────────────────────────────── */
+.team-bar{background:var(--acc-dim);border-bottom:1px solid var(--border);padding:5px 14px;display:flex;align-items:center;gap:8px;font-family:'DM Mono',monospace;font-size:10px;flex-wrap:wrap}
+.team-bar .tbn{font-weight:700;color:var(--acc)}.team-bar .tmn{color:var(--text2)}
+.team-bar .tlink{color:var(--muted);cursor:pointer;text-decoration:underline;font-size:9px}
+.team-bar .tlink:hover{color:var(--acc)}
+.team-bar .tlogout{margin-left:auto;background:none;border:1px solid var(--border);border-radius:var(--rs);color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:9px;padding:2px 7px;transition:all .15s}
+.team-bar .tlogout:hover{border-color:var(--red);color:var(--red)}
+.team-bar .tsync{color:var(--teal);font-size:9px}
+
+/* ── APPROVED BANNER ─────────────────────────────────────── */
+.ap-banner{background:var(--green-bg);border:1px solid var(--green);border-radius:var(--r);padding:11px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+[data-theme="dark"] .ap-banner{background:var(--green-dim)}
+.ap-banner .ab-icon{font-size:18px}.ap-banner .ab-text{flex:1}
+.ap-banner .ab-title{font-weight:700;font-size:13px;color:var(--green)}
+.ap-banner .ab-meta{font-family:'DM Mono',monospace;font-size:9px;color:var(--text2);margin-top:1px}
+.ap-banner .ab-btn{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);cursor:pointer;font-family:'DM Mono',monospace;font-size:9px;padding:4px 8px;transition:all .15s}
+.ap-banner .ab-btn:hover{border-color:var(--acc);color:var(--acc)}
+
+/* ── TUTORIAL ────────────────────────────────────────────── */
+.tut-overlay{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center}
+.tut-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:28px 24px;max-width:460px;width:92%;box-shadow:0 12px 40px rgba(0,0,0,.2);position:relative}
+.tut-step{text-align:center}.tut-icon{font-size:38px;margin-bottom:8px}
+.tut-title{font-size:16px;font-weight:800;margin-bottom:6px}
+.tut-desc{font-size:11px;color:var(--text2);line-height:1.8;margin-bottom:14px;font-family:'DM Mono',monospace;text-align:left}
+.tut-dots{display:flex;justify-content:center;gap:6px;margin-bottom:12px}
+.tut-dot{width:8px;height:8px;border-radius:50%;background:var(--border2);transition:all .2s}
+.tut-dot.active{background:var(--acc);transform:scale(1.2)}
+.tut-btns{display:flex;gap:8px;justify-content:center}
+.tut-btn{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);cursor:pointer;font-family:'Syne',sans-serif;font-size:11px;font-weight:600;padding:6px 14px;transition:all .2s}
+.tut-btn:hover{border-color:var(--acc);color:var(--acc)}
+.tut-btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+.tut-btn.primary:hover{background:var(--acc-h)}
+.tut-close{position:absolute;top:8px;right:10px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:4px}
+.tut-close:hover{color:var(--text)}
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
+<!-- LOGIN OVERLAY -->
+<div class="login-overlay" id="loginOverlay">
+  <div style="text-align:center">
+    <div class="logo" style="margin:0 auto 8px;width:48px;height:48px;font-size:24px;border-radius:14px">⚡</div>
+    <h1 style="font-size:22px;font-weight:800">Shift<span style="color:var(--acc)">Master</span></h1>
+    <div class="subtitle" style="margin-bottom:4px">Generator grafiku · Tryb zespołowy</div>
+  </div>
+  <div class="login-box">
+    <div class="login-tabs">
+      <button class="login-tab active" onclick="showLoginTab('join')">Dołącz do zespołu</button>
+      <button class="login-tab" onclick="showLoginTab('create')">Utwórz zespół</button>
+    </div>
+    <div id="loginJoin">
+      <label>ID zespołu lub link</label>
+      <input id="joinTeamId" placeholder="np. abc123 lub pełny link">
+      <label>Hasło zespołu</label>
+      <input id="joinPassword" type="password" placeholder="Hasło ustalone przez lidera">
+      <label>Twoje imię</label>
+      <input id="joinName" placeholder="np. Jan Kowalski">
+      <div class="login-err" id="joinErr"></div>
+      <button class="login-btn" onclick="doJoinTeam()">Dołącz</button>
+    </div>
+    <div id="loginCreate" style="display:none">
+      <label>Nazwa zespołu</label>
+      <input id="createTeamName" placeholder="np. Ochrona Warszawa">
+      <label>Hasło dla zespołu</label>
+      <input id="createPassword" type="password" placeholder="Min. 4 znaki">
+      <label>Twoje imię</label>
+      <input id="createName" placeholder="np. Jan Kowalski">
+      <div class="login-err" id="createErr"></div>
+      <button class="login-btn" onclick="doCreateTeam()">Utwórz zespół</button>
+    </div>
+    <div class="login-local">
+      <button onclick="startLocalMode()">lub pracuj lokalnie bez zespołu</button>
+    </div>
+  </div>
+</div>
+<!-- TUTORIAL OVERLAY -->
+<div class="tut-overlay" id="tutOverlay" style="display:none"></div>
 <header>
   <div class="logo">⚡</div>
   <div><h1>Shift<span>Master</span></h1><div class="subtitle">Generator grafiku · v6.3</div></div>
   <div class="hacts">
     <span class="toast" id="toast"></span>
     <button class="thbtn" onclick="togTheme()" id="thBtn">🌙</button>
-    <button class="hbtn sv" onclick="saveW()">💾 Zapisz pracowników</button>
-    <button class="hbtn" onclick="loadW()">📂 Wczytaj pracowników</button>
+    <button class="hbtn sv" onclick="saveW()">💾 Zapisz</button>
+    <button class="hbtn" onclick="loadW()">📂 Wczytaj</button>
     <button class="hbtn" onclick="clearSave()" style="opacity:.45">🗑</button>
+    <button class="hbtn" onclick="showTutorial()">❓ Pomoc</button>
     <button class="mob-toggle" onclick="togSidebar()">☰ Panel</button>
   </div>
 </header>
+<div class="team-bar" id="teamBar" style="display:none">
+  <span class="tbn" id="teamNameDisp"></span>
+  <span class="tmn" id="teamMemberDisp"></span>
+  <span class="tsync" id="syncStatus"></span>
+  <span class="tlink" onclick="copyTeamLink()" title="Kopiuj link zaproszenia">📋 Kopiuj link</span>
+  <button class="tlogout" onclick="doLogout()">Wyloguj</button>
+</div>
 <div class="app">
 <aside class="sidebar" id="sidebar">
   <button class="mob-close" id="mobClose" onclick="togSidebar()">✕ Zamknij</button>
@@ -391,7 +488,6 @@ td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
         <div style="display:flex;align-items:center;gap:6px"><div style="width:20px;height:14px;border-radius:2px;background:var(--green-bg);border:1px solid var(--green);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--green)">D</div>Dniówka 12h</div>
         <div style="display:flex;align-items:center;gap:6px"><div style="width:20px;height:14px;border-radius:2px;background:var(--yellow-bg);border:1px solid var(--yellow);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--yellow)">N</div>Nocka 12h</div>
         <div style="display:flex;align-items:center;gap:6px"><div style="width:20px;height:14px;border-radius:2px;background:#d6eef8;border:1px solid #1a7fa8;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#1a7fa8">24h</div>Weekend</div>
-        <div style="display:flex;align-items:center;gap:6px"><div style="width:20px;height:14px;border-radius:2px;background:var(--teal-bg);border:1px solid var(--teal);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--teal)">B</div>Biuro Pn-Pt</div>
         <div style="display:flex;align-items:center;gap:6px"><div style="width:20px;height:14px;border-radius:2px;background:var(--purple-bg);border:1px solid var(--purple);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--purple)">U</div>Urlop Pn-Pt (+8h)</div>
         <div style="display:flex;align-items:center;gap:6px"><div style="width:20px;height:14px;border-radius:2px;background:var(--blue-bg);border:1px solid var(--blue);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--blue)">U</div>Urlop Sb-Nd (0h)</div>
         <div style="display:flex;align-items:center;gap:6px"><div style="width:20px;height:14px;border-radius:2px;background:var(--gray-bg);border:1px solid var(--gray);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--gray)">—</div>Niedostępny (0h)</div>
@@ -406,6 +502,7 @@ td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
 <div class="mob-overlay" id="mobOverlay" onclick="togSidebar()"></div>
 <main class="main">
   <div class="main-inner" id="mainInner">
+    <div id="approvedBanner"></div>
     <div class="empty">
       <div class="empty-icon">📅</div>
       <h2>Brak grafiku</h2>
@@ -468,15 +565,17 @@ function togSidebar(){
 
 // ── SAVE / LOAD ────────────────────────────────────────────────────
 function saveW(){
+  if(teamSession&&db){saveToFirestore();return;}
   try{
     localStorage.setItem(LS,JSON.stringify({
-      workers:workers.map(w=>({id:w.id,name:w.name,color:w.color,office2:!!w.office2,days:w.days||{}})),
+      workers:workers.map(w=>({id:w.id,name:w.name,color:w.color,days:w.days||{}})),
       ctr:wCtr
     }));
     toast('✓ Zapisano '+workers.length+' pracowników');
   }catch(e){toast('✗ Błąd zapisu');}
 }
 function loadW(){
+  if(teamSession&&db){loadTeamData();return;}
   try{
     const raw=localStorage.getItem(LS);if(!raw){toast('Brak danych');return;}
     const d=JSON.parse(raw);
@@ -500,13 +599,13 @@ function showP(id,btn){
 }
 
 // ── MONTH / WEEKEND ────────────────────────────────────────────────
-function onMC(){buildWeModes();renderWorkers();renderWEGrid();}
+function onMC(){buildWeModes();renderWorkers();renderWEGrid();autoSave();}
 function buildWeModes(){
   const {y,m}=ym();const n=dim(y,m);const nx={};
   for(let d=1;d<=n;d++)if(dow(y,m,d)===6){const s=dstr(y,m,d);nx[s]=weModes[s]||'24h';}
   weModes=nx;
 }
-function setWEMode(s,mode){weModes[s]=mode;renderWEGrid();}
+function setWEMode(s,mode){weModes[s]=mode;renderWEGrid();autoSave();}
 function renderWEGrid(){
   const {y,m}=ym();const n=dim(y,m);const g=document.getElementById('wegrid');if(!g)return;
   let h='';
@@ -528,10 +627,10 @@ function renderWEGrid(){
 // ── WORKERS ────────────────────────────────────────────────────────
 function addW(name){
   const id=wCtr++;
-  workers.push({id,name:name||`Pracownik ${id+1}`,color:COLORS[workers.length%COLORS.length],_open:false,office2:false,days:{}});
-  cmode[id]='vac';renderWorkers();
+  workers.push({id,name:name||`Pracownik ${id+1}`,color:COLORS[workers.length%COLORS.length],_open:false,days:{}});
+  cmode[id]='vac';renderWorkers();autoSave();
 }
-function delW(id){workers=workers.filter(w=>w.id!==id);renderWorkers();}
+function delW(id){workers=workers.filter(w=>w.id!==id);renderWorkers();autoSave();}
 function renderWorkers(){
   const {y,m}=ym();const list=document.getElementById('wlist');list.innerHTML='';
   workers.forEach(w=>{
@@ -542,28 +641,18 @@ function renderWorkers(){
 }
 function buildWCard(w,y,m){
   const cnt=Object.keys(w.days).length;
-  const badges=(cnt?`<span class="wbadge bc">${cnt}×</span>`:'')+
-               (w.office2?`<span class="wbadge bo">🏢</span>`:'');
+  const badges=cnt?`<span class="wbadge bc">${cnt}×</span>`:'';
   const body=w._open?`<div class="wbody">${buildWOpts(w)}${buildCal(w,y,m)}</div>`:'';
   return `<div class="whead">
     <div class="wdot" style="background:${w.color}"></div>
-    <input class="wname" value="${w.name}" oninput="workers.find(x=>x.id===${w.id}).name=this.value" placeholder="Imię">
+    <input class="wname" value="${w.name}" oninput="workers.find(x=>x.id===${w.id}).name=this.value;autoSave()" placeholder="Imię">
     <div class="wbadges">${badges}</div>
     <button class="warr${w._open?' op':''}" onclick="togW(${w.id})">▾</button>
     <button class="wdel" onclick="delW(${w.id})">×</button>
   </div>${body}`;
 }
-function buildWOpts(w){
-  return `<div class="wopts">
-    <label class="chkr"><input type="checkbox" ${w.office2?'checked':''} onchange="setOff(${w.id},this.checked)">
-      <span class="chkl">Min. 2 dni w biurze / tydzień (Pn–Pt)</span></label>
-    <div class="chkn">Algorytm preferuje dniówki dla tej osoby; nocek i weekendów dostaje mniej żeby godziny były równe.</div>
-  </div>`;
-}
-function setOff(id,v){
-  const w=workers.find(x=>x.id===id);if(!w)return;
-  w.office2=v;const {y,m}=ym();document.getElementById('wc'+id).innerHTML=buildWCard(w,y,m);
-}
+function buildWOpts(w){return '';}
+
 function togW(id){
   const w=workers.find(x=>x.id===id);if(!w)return;
   w._open=!w._open;const {y,m}=ym();
@@ -632,6 +721,7 @@ function calClick(wid,date){
     else w.days[date]='no-n';
   }
   const {y,m}=ym();document.getElementById('wc'+wid).innerHTML=buildWCard(w,y,m);
+  autoSave();
 }
 
 // ── SHIFT GENERATION ──────────────────────────────────────────────
@@ -658,26 +748,11 @@ function genShifts(y,m){
 }
 
 // ── KWOTY (pre-obliczone przed generowaniem) ──────────────────────
-// To jest kluczowa zmiana względem poprzednich wersji.
-// Zamiast na bieżąco liczyć "skuteczne godziny" i liczyć na to że heurystyka
-// sama się wyreguluje (co nigdy nie działało), pre-obliczamy TWARDE LIMITY
-// dla każdego pracownika:
-//   - maxDzienWday: ile dniówek Pn-Pt może wziąć
-//   - maxNocWeH: ile godzin z nocek + weekendów może wziąć
-//
-// Dla pracownika z office2:
-//   maxDzienWday = numWeeks * 2  (obowiązkowe biurowe)
-//   maxNocWeH    = targetH - maxDzienWday*12  (reszta do celu)
-//
-// Dla normalnego pracownika:
-//   maxDzienWday = (totalWdayDzien - sumOfficeQuota) / numNormal  (co zostaje po biurowych)
-//   maxNocWeH    = targetH - maxDzienWday*12
-//
-// Dzięki temu suma godzin każdego pracownika wynosi ~targetH niezależnie od office2.
+// Każdy pracownik dostaje równą kwotę dniówek Pn-Pt i nocek+weekendów.
+// Wszystkie dniówki Pn-Pt traktowane jako biurowe (nie ma rozróżnienia B/D).
 
 function buildQuotas(y,m){
   const n=dim(y,m);
-  // Policz dostępne zmiany
   let wdayDzien=0,wdayNoc=0,weH=0;
   for(let d=1;d<=n;d++){
     const wd=dow(y,m,d);
@@ -686,43 +761,17 @@ function buildQuotas(y,m){
       const satS=wd===6?dstr(y,m,d):dstr(y,m,d-1);
       const mo=weModes[satS]||'24h';
       if(mo==='24h')weH+=24;
-      else if(mo==='split'){weH+=24;} // dzien+noc = 24h per worker slot
+      else if(mo==='split'){weH+=24;}
     }
   }
-  // Policz tygodnie robocze
-  const weekSet=new Set();
-  for(let d=1;d<=n;d++){
-    const wd=dow(y,m,d);if(wd<1||wd>5)continue;
-    const dt=new Date(y,m-1,d);dt.setDate(dt.getDate()-(wd-1));
-    weekSet.add(dt.toISOString().slice(0,10));
-  }
-  const numWeeks=weekSet.size;
   const numW=workers.length;
   const totalH=wdayDzien*12+wdayNoc*12+weH;
   const targetH=totalH/numW;
-
-  const officeWorkers=workers.filter(w=>w.office2);
-  const normalWorkers=workers.filter(w=>!w.office2);
-
-  // Suma dniówek zarezerwowanych dla office2
-  const totalOfficeQuota=officeWorkers.length*numWeeks*2;
-  // Dniówki pozostałe dla normalnych (mogą być < 0 jeśli za dużo office2 workers)
-  const remainingDzien=Math.max(0,wdayDzien-totalOfficeQuota);
-  const normalDzienPerWorker=normalWorkers.length>0
-    ? remainingDzien/normalWorkers.length
-    : 0;
-
+  const maxD=wdayDzien/numW;
+  const maxNocWeH=Math.max(0,targetH-maxD*12);
   const quotas={};
   workers.forEach(w=>{
-    if(w.office2){
-      const maxD=numWeeks*2;
-      const maxNocWeH=Math.max(0,targetH-maxD*12);
-      quotas[w.id]={maxDzienWday:maxD,maxNocWeH,target:targetH};
-    } else {
-      const maxD=normalDzienPerWorker;
-      const maxNocWeH=Math.max(0,targetH-maxD*12);
-      quotas[w.id]={maxDzienWday:maxD,maxNocWeH,target:targetH};
-    }
+    quotas[w.id]={maxDzienWday:maxD,maxNocWeH,target:targetH};
   });
   return quotas;
 }
@@ -780,8 +829,6 @@ function canAssign(w,shift,sched,cfg){
     const myDzien=sched.filter(e=>e.wid===wid&&e.type==='dzien'&&
       (()=>{const w2=new Date(e.date).getDay();return w2>=1&&w2<=5;})()).length;
     if(myDzien>=q.maxDzienWday+cfg.tol/12)return false;
-    // Dla office2: max 2/tydzień
-    if(w.office2&&weekOfficeCnt(wid,date,sched)>=2)return false;
   }
 
   if(type==='noc'||type==='24h'||(type==='dzien'&&!isWday)){
@@ -802,11 +849,6 @@ function wScore(w,shift,sched,cfg){
   const myH=sched.filter(e=>e.wid===wid).reduce((s,e)=>s+e.hours,0);
   let score=myH/q.target; // 0..1, niższe = bardziej potrzebuje
 
-  // Dla office2: priorytet na dniówki weekday gdy nie wypełnił kwoty tygodniowej
-  if(w.office2&&shift.type==='dzien'){
-    const dw=new Date(shift.date).getDay();
-    if(dw>=1&&dw<=5&&weekOfficeCnt(wid,shift.date,sched)<2)score-=0.5;
-  }
   score+=(Math.random()-.5)*0.15;
   return score;
 }
@@ -923,16 +965,14 @@ function renderAll(y,m,fallbackUsed=false,firstCount=schedules.length){
 
 function renderSched(idx,y,m){
   const sched=schedules[idx];const n=dim(y,m);
-  const hrs={};workers.forEach(w=>hrs[w.id]={d:0,n:0,t24:0,b:0,vac:vacH(w,y,m)});
+  const hrs={};workers.forEach(w=>hrs[w.id]={d:0,n:0,t24:0,vac:vacH(w,y,m)});
   sched.forEach(e=>{
-    if(!hrs[e.wid])hrs[e.wid]={d:0,n:0,t24:0,b:0,vac:0};
-    const wd=new Date(e.date).getDay();const iswd=wd>=1&&wd<=5;
-    const w=workers.find(x=>x.id===e.wid);
-    if(e.type==='dzien'){if(iswd&&w&&w.office2)hrs[e.wid].b+=12;else hrs[e.wid].d+=12;}
+    if(!hrs[e.wid])hrs[e.wid]={d:0,n:0,t24:0,vac:0};
+    if(e.type==='dzien')hrs[e.wid].d+=12;
     else if(e.type==='noc')hrs[e.wid].n+=12;
     else hrs[e.wid].t24+=24;
   });
-  const tots=workers.map(w=>{const h=hrs[w.id];return{w,total:h.d+h.n+h.t24+h.b+h.vac,...h};});
+  const tots=workers.map(w=>{const h=hrs[w.id];return{w,total:h.d+h.n+h.t24+h.vac,...h};});
   const maxH=Math.max(...tots.map(t=>t.total),1);
   const minH=Math.min(...tots.map(t=>t.total));
   const avgH=Math.round(tots.reduce((s,t)=>s+t.total,0)/tots.length);
@@ -948,6 +988,7 @@ function renderSched(idx,y,m){
     ${modeBadge}
     <span class="sched-meta">${MONTHS[m]} ${y} · śr. ${avgH}h · odch. ${maxH-minH}h · ${sched.length} zmian</span>
     <button class="expbtn" onclick="exportXL(${y},${m},${idx})">⬇ Excel</button>
+    ${teamSession?`<button class="expbtn" style="border-color:var(--green);color:var(--green)" onclick="approveSchedule(${idx})">✓ Zatwierdź</button>`:''}
   </div>`;
 
   let bars=`<div class="hvis"><div class="sec" style="margin-bottom:3px">Godziny pracowników</div>`;
@@ -957,7 +998,7 @@ function renderSched(idx,y,m){
       <div class="hname" style="color:${t.w.color}">${t.w.name}</div>
       <div class="hbarw"><div class="hbar" style="width:${pct}%;background:${t.w.color}"></div></div>
       <div class="hnum">${t.total}h</div>
-      <div class="hbk">D:${t.d} N:${t.n} 24:${t.t24}${t.b?' B:'+t.b:''}${t.vac?' U:+'+t.vac:''}</div>
+      <div class="hbk">D:${t.d} N:${t.n} 24:${t.t24}${t.vac?' U:+'+t.vac:''}</div>
     </div>`;
   });
   bars+='</div>';
@@ -971,7 +1012,7 @@ function renderSched(idx,y,m){
 
   let tbody='<tbody>';
   workers.forEach(w=>{
-    tbody+=`<tr><td class="wn"><span style="color:${w.color};margin-right:4px">●</span>${w.name}${w.office2?' <span style="color:var(--teal);font-size:8px">🏢</span>':''}</td>`;
+    tbody+=`<tr><td class="wn"><span style="color:${w.color};margin-right:4px">●</span>${w.name}</td>`;
     let wt=0;
     for(let d=1;d<=n;d++){
       const date=dstr(y,m,d);const wd=dow(y,m,d);
@@ -983,7 +1024,7 @@ function renderSched(idx,y,m){
       } else if(r==='off'){
         cls='coff';lbl='—';
       } else if(type==='dzien'){
-        if(iswd&&w.office2){cls='co';lbl='B';wt+=12;}else{cls='cd';lbl='D';wt+=12;}
+        cls='cd';lbl='D';wt+=12;
       } else if(type==='noc'){cls='cn';lbl='N';wt+=12;}
       else if(type==='24h'){cls='c24';lbl='24h';wt+=24;}
       else{
@@ -1000,7 +1041,6 @@ function renderSched(idx,y,m){
     <div class="legitem"><div class="legdot" style="background:var(--green-bg);border:1px solid var(--green);color:var(--green)">D</div>Dzień</div>
     <div class="legitem"><div class="legdot" style="background:var(--yellow-bg);border:1px solid var(--yellow);color:var(--yellow)">N</div>Noc</div>
     <div class="legitem"><div class="legdot" style="background:#d6eef8;border:1px solid #1a7fa8;color:#1a7fa8;font-size:7px">24h</div>Weekend</div>
-    <div class="legitem"><div class="legdot" style="background:var(--teal-bg);border:1px solid var(--teal);color:var(--teal)">B</div>Biuro</div>
     <div class="legitem"><div class="legdot" style="background:var(--purple-bg);border:1px solid var(--purple);color:var(--purple)">U</div>Urlop Pn-Pt</div>
     <div class="legitem"><div class="legdot" style="background:var(--blue-bg);border:1px solid var(--blue);color:var(--blue)">U</div>Urlop Sb-Nd</div>
     <div class="legitem"><div class="legdot" style="background:var(--gray-bg);border:1px solid var(--gray);color:var(--gray)">—</div>Niedostępny</div>
@@ -1093,8 +1133,6 @@ function exportXL(y,m,onlyIdx){
     noc:      {bg:'#00b0f0',fg:'#000000'},  // niebieski
     // 24h weekend
     h24:      {bg:'#87CEEB',fg:'#000000'},  // błękitny (sky blue)
-    // Biuro B (teal)
-    biuro:    {bg:'#00b0f0',fg:'#000000'},
     // Urlop Pn-Pt (żółty z "U")
     vacWD:    {bg:'#ffff00',fg:'#000000'},
     // Urlop Sb-Nd (żółty z "U")
@@ -1208,8 +1246,7 @@ function exportXL(y,m,onlyIdx){
         } else if(r==='off'){
           lbl='WN';cBg=C.off.bg;cFg=C.off.fg;
         } else if(type==='dzien'){
-          if(iswd&&w.office2){lbl='B';cBg=C.biuro.bg;cFg=C.biuro.fg;total+=12;}
-          else{lbl='D';cBg=C.dzien.bg;cFg=C.dzien.fg;total+=12;}
+          lbl='D';cBg=C.dzien.bg;cFg=C.dzien.fg;total+=12;
         } else if(type==='noc'){
           lbl='N';cBg=C.noc.bg;cFg=C.noc.fg;total+=12;
         } else if(type==='24h'){
@@ -1420,17 +1457,414 @@ function exportXL(y,m,onlyIdx){
   toast('✓ Pobrano Excel (.xls z kolorami)');
 }
 
-// ── INIT ──────────────────────────────────────────────────────────
-function init(){
+// ══════════════════════════════════════════════════════════════════
+// ██ FIREBASE BACKEND ██
+// ══════════════════════════════════════════════════════════════════
+
+// ── FIREBASE CONFIG ──────────────────────────────────────────────
+// INSTRUKCJA:
+// 1. Wejdź na https://console.firebase.google.com
+// 2. Utwórz nowy projekt (wyłącz Google Analytics)
+// 3. W panelu projektu → „Kompilacja" → „Firestore Database" → „Utwórz bazę danych" → tryb testowy
+// 4. W panelu projektu → ⚙ → „Ustawienia projektu" → „Twoje aplikacje" → ikona </> (Web)
+// 5. Zarejestruj aplikację i skopiuj wartości poniżej:
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyARwVG94FoE4QEMUV3PAj3-1mYsB_0_a1E",
+  authDomain: "shiftmaster-f085b.firebaseapp.com",
+  projectId: "shiftmaster-f085b",
+  storageBucket: "shiftmaster-f085b.firebasestorage.app",
+  messagingSenderId: "603019176306",
+  appId: "1:603019176306:web:16dfd03258799497f9d5eb"
+};
+
+// ── FIREBASE STATE ───────────────────────────────────────────────
+let db=null, teamSession=null, unsubscribe=null, _skipSnap=false;
+
+function initFirebase(){
+  if(FIREBASE_CONFIG.apiKey.startsWith('TWOJ')){return false;}
+  try{firebase.initializeApp(FIREBASE_CONFIG);db=firebase.firestore();return true;}
+  catch(e){console.error('Firebase init:',e);return false;}
+}
+
+// ── HASH ─────────────────────────────────────────────────────────
+async function hashPw(pw){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pw));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+function genTeamId(){
+  const c='abcdefghijklmnopqrstuvwxyz0123456789';
+  let id='';for(let i=0;i<8;i++)id+=c[Math.floor(Math.random()*c.length)];return id;
+}
+
+// ── LOGIN UI ─────────────────────────────────────────────────────
+function showLoginTab(tab){
+  document.getElementById('loginJoin').style.display=tab==='join'?'':'none';
+  document.getElementById('loginCreate').style.display=tab==='create'?'':'none';
+  document.querySelectorAll('.login-tab').forEach((b,i)=>{
+    b.classList.toggle('active',(tab==='join'&&i===0)||(tab==='create'&&i===1));
+  });
+}
+
+async function doCreateTeam(){
+  const name=document.getElementById('createTeamName').value.trim();
+  const pw=document.getElementById('createPassword').value;
+  const member=document.getElementById('createName').value.trim();
+  const err=document.getElementById('createErr');
+  if(!name){err.textContent='Podaj nazwę zespołu';return;}
+  if(pw.length<4){err.textContent='Hasło min. 4 znaki';return;}
+  if(!member){err.textContent='Podaj swoje imię';return;}
+  err.textContent='Tworzenie...';
+  try{
+    const tid=genTeamId(), pwh=await hashPw(pw);
+    const now=new Date();
+    const nextM=new Date(now.getFullYear(),now.getMonth()+1,1);
+    await db.collection('teams').doc(tid).set({
+      name,passwordHash:pwh,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+      workers:[],weModes:{},wCtr:0,
+      settings:{month:nextM.getMonth()+1,year:nextM.getFullYear()},
+      approvedSchedules:{}
+    });
+    teamSession={teamId:tid,memberName:member,passwordHash:pwh};
+    localStorage.setItem('sm_session',JSON.stringify(teamSession));
+    window.location.hash='team='+tid;
+    showApp();
+    toast('✓ Zespół utworzony! Udostępnij link.');
+    if(!localStorage.getItem('sm_tut_done'))showTutorial();
+  }catch(e){err.textContent='Błąd: '+e.message;}
+}
+
+async function doJoinTeam(){
+  let tid=document.getElementById('joinTeamId').value.trim().toLowerCase();
+  const pw=document.getElementById('joinPassword').value;
+  const member=document.getElementById('joinName').value.trim();
+  const err=document.getElementById('joinErr');
+  if(tid.includes('#team='))tid=tid.split('#team=').pop();
+  if(tid.includes('team='))tid=tid.split('team=').pop();
+  if(!tid){err.textContent='Podaj ID zespołu';return;}
+  if(!pw){err.textContent='Podaj hasło';return;}
+  if(!member){err.textContent='Podaj swoje imię';return;}
+  err.textContent='Łączenie...';
+  try{
+    const doc=await db.collection('teams').doc(tid).get();
+    if(!doc.exists){err.textContent='Zespół nie istnieje';return;}
+    const pwh=await hashPw(pw);
+    if(doc.data().passwordHash!==pwh){err.textContent='Błędne hasło';return;}
+    teamSession={teamId:tid,memberName:member,passwordHash:pwh};
+    localStorage.setItem('sm_session',JSON.stringify(teamSession));
+    window.location.hash='team='+tid;
+    showApp();
+    if(!localStorage.getItem('sm_tut_done'))showTutorial();
+  }catch(e){err.textContent='Błąd: '+e.message;}
+}
+
+function doLogout(){
+  if(unsubscribe){unsubscribe();unsubscribe=null;}
+  teamSession=null;
+  localStorage.removeItem('sm_session');
+  window.location.hash='';
+  workers=[];schedules=[];weModes={};wCtr=0;
+  document.getElementById('loginOverlay').style.display='';
+  document.getElementById('teamBar').style.display='none';
+  document.getElementById('mainInner').innerHTML='<div id="approvedBanner"></div><div class="empty"><div class="empty-icon">📅</div><h2>Brak grafiku</h2><p>Zaloguj się do zespołu aby rozpocząć.</p></div>';
+  document.getElementById('wlist').innerHTML='';
+}
+
+function copyTeamLink(){
+  if(!teamSession)return;
+  const link=window.location.origin+window.location.pathname+'#team='+teamSession.teamId;
+  navigator.clipboard.writeText(link).then(()=>toast('✓ Link skopiowany!')).catch(()=>prompt('Skopiuj link:',link));
+}
+
+function startLocalMode(){
+  document.getElementById('loginOverlay').style.display='none';
+  ['Anna','Bartosz','Celina','Dawid'].forEach(n=>addW(n));
+  buildWeModes();renderWEGrid();
+  if(!localStorage.getItem('sm_tut_done'))showTutorial();
+}
+
+// ── APP SHOW ─────────────────────────────────────────────────────
+function showApp(){
+  document.getElementById('loginOverlay').style.display='none';
+  const tb=document.getElementById('teamBar');tb.style.display='';
+  document.getElementById('teamNameDisp').textContent='';
+  document.getElementById('teamMemberDisp').textContent='👤 '+teamSession.memberName;
+  loadTeamData();
+  startRealtimeSync();
+}
+
+// ── FIRESTORE SYNC ───────────────────────────────────────────────
+async function loadTeamData(){
+  if(!teamSession||!db)return;
+  const ss=document.getElementById('syncStatus');
+  ss.textContent='⟳ Ładowanie...';
+  try{
+    const doc=await db.collection('teams').doc(teamSession.teamId).get();
+    if(!doc.exists){ss.textContent='✗ Brak danych';return;}
+    const d=doc.data();
+    document.getElementById('teamNameDisp').textContent='🏢 '+(d.name||teamSession.teamId);
+    applyTeamData(d);
+    ss.textContent='✓ Zsynchronizowano';
+    setTimeout(()=>{if(ss.textContent==='✓ Zsynchronizowano')ss.textContent='';},2000);
+  }catch(e){ss.textContent='✗ Błąd';console.error(e);}
+}
+
+function applyTeamData(d){
+  if(d.workers){
+    workers=d.workers.map(w=>({...w,_open:false,days:w.days||{}}));
+    workers.forEach(w=>{cmode[w.id]=cmode[w.id]||'vac';});
+  }
+  wCtr=d.wCtr||workers.length;
+  if(d.weModes)weModes=d.weModes;
+  if(d.settings){
+    if(d.settings.month)document.getElementById('selM').value=d.settings.month;
+    if(d.settings.year)document.getElementById('selY').value=d.settings.year;
+  }
+  buildWeModes();renderWorkers();renderWEGrid();
+  renderApprovedBanner(d.approvedSchedules);
+}
+
+async function saveToFirestore(){
+  if(!teamSession||!db)return;
+  const ss=document.getElementById('syncStatus');
+  ss.textContent='⟳ Zapis...';
+  _skipSnap=true;
+  try{
+    const {y,m}=ym();
+    await db.collection('teams').doc(teamSession.teamId).update({
+      workers:workers.map(w=>({id:w.id,name:w.name,color:w.color,days:w.days||{}})),
+      wCtr,weModes,settings:{month:m,year:y}
+    });
+    ss.textContent='✓ Zapisano';
+    setTimeout(()=>{if(ss.textContent==='✓ Zapisano')ss.textContent='';},2000);
+  }catch(e){ss.textContent='✗ Błąd zapisu';console.error(e);_skipSnap=false;}
+}
+
+let _saveT=null;
+function autoSave(){
+  if(!teamSession)return;
+  clearTimeout(_saveT);
+  _saveT=setTimeout(()=>saveToFirestore(),1200);
+}
+
+// ── REALTIME SYNC ────────────────────────────────────────────────
+function startRealtimeSync(){
+  if(!teamSession||!db)return;
+  if(unsubscribe)unsubscribe();
+  unsubscribe=db.collection('teams').doc(teamSession.teamId).onSnapshot(doc=>{
+    if(!doc.exists)return;
+    if(_skipSnap){_skipSnap=false;return;}
+    const d=doc.data();
+    document.getElementById('teamNameDisp').textContent='🏢 '+(d.name||teamSession.teamId);
+    applyTeamData(d);
+    const ss=document.getElementById('syncStatus');
+    ss.textContent='⟳ Aktualizacja';
+    setTimeout(()=>{if(ss.textContent==='⟳ Aktualizacja')ss.textContent='';},1500);
+  },e=>console.error('Sync error:',e));
+}
+
+// ── SCHEDULE APPROVAL ────────────────────────────────────────────
+async function approveSchedule(idx){
+  if(!teamSession||!db)return;
+  if(!confirm('Zatwierdź ten grafik? Będzie widoczny dla całego zespołu.'))return;
+  const sched=schedules[idx];
+  const {y,m}=ym();
+  const mk=y+'-'+m;
+  const ss=document.getElementById('syncStatus');
+  ss.textContent='⟳ Zatwierdzanie...';
+  try{
+    const upd={};
+    upd['approvedSchedules.'+mk]={
+      data:sched,
+      approvedBy:teamSession.memberName,
+      approvedAt:new Date().toISOString(),
+      workers:workers.map(w=>({id:w.id,name:w.name,color:w.color,days:w.days||{}})),
+      weModes:{...weModes},month:m,year:y
+    };
+    await db.collection('teams').doc(teamSession.teamId).update(upd);
+    toast('✓ Grafik zatwierdzony!');
+    ss.textContent='✓ Zatwierdzono';
+    loadTeamData();
+  }catch(e){ss.textContent='✗ Błąd';console.error(e);}
+}
+
+async function removeApproval(mk){
+  if(!teamSession||!db)return;
+  if(!confirm('Cofnij zatwierdzenie grafiku?'))return;
+  try{
+    const upd={};upd['approvedSchedules.'+mk]=firebase.firestore.FieldValue.delete();
+    await db.collection('teams').doc(teamSession.teamId).update(upd);
+    toast('✓ Zatwierdzenie cofnięte');loadTeamData();
+  }catch(e){console.error(e);}
+}
+
+function renderApprovedBanner(appSch){
+  const c=document.getElementById('approvedBanner');
+  if(!c)return;
+  if(!appSch||!Object.keys(appSch).length){c.innerHTML='';return;}
+  const {y,m}=ym();
+  const mk=y+'-'+m;
+  const ap=appSch[mk];
+  if(!ap){c.innerHTML='';return;}
+  const dt=new Date(ap.approvedAt);
+  c.innerHTML=`<div class="ap-banner">
+    <div class="ab-icon">✅</div>
+    <div class="ab-text">
+      <div class="ab-title">Zatwierdzony grafik — ${MONTHS[m]} ${y}</div>
+      <div class="ab-meta">Zatwierdził: ${ap.approvedBy} · ${dt.toLocaleDateString('pl-PL')} ${dt.toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'})}</div>
+    </div>
+    <button class="ab-btn" onclick="showApprovedSchedule('${mk}')">👁 Pokaż</button>
+    <button class="ab-btn" onclick="exportApprovedXL('${mk}')">⬇ Excel</button>
+    <button class="ab-btn" onclick="removeApproval('${mk}')" style="color:var(--red)">✕ Cofnij</button>
+  </div>`;
+}
+
+function showApprovedSchedule(mk){
+  if(!teamSession||!db)return;
+  db.collection('teams').doc(teamSession.teamId).get().then(doc=>{
+    if(!doc.exists)return;
+    const ap=doc.data().approvedSchedules?.[mk];
+    if(!ap)return;
+    const _w=workers,_s=schedules,_we=weModes,_wc=wCtr,_m=window._schedMeta;
+    workers=ap.workers.map(w=>({...w,_open:false,days:w.days||{}}));
+    weModes=ap.weModes||{};wCtr=Math.max(...workers.map(w=>w.id),0)+1;
+    schedules=[ap.data];
+    document.getElementById('selM').value=ap.month;
+    document.getElementById('selY').value=ap.year;
+    renderAll(ap.year,ap.month,false,1);
+    workers=_w;weModes=_we;schedules=_s;wCtr=_wc;window._schedMeta=_m;
+    const {y,m}=ym();
+    document.getElementById('selM').value=m;
+    document.getElementById('selY').value=y;
+  });
+}
+
+function exportApprovedXL(mk){
+  if(!teamSession||!db)return;
+  db.collection('teams').doc(teamSession.teamId).get().then(doc=>{
+    if(!doc.exists)return;
+    const ap=doc.data().approvedSchedules?.[mk];
+    if(!ap)return;
+    const _w=workers,_s=schedules,_we=weModes,_wc=wCtr;
+    workers=ap.workers.map(w=>({...w,_open:false,days:w.days||{}}));
+    weModes=ap.weModes||{};wCtr=Math.max(...workers.map(w=>w.id),0)+1;
+    schedules=[ap.data];
+    exportXL(ap.year,ap.month,0);
+    workers=_w;weModes=_we;schedules=_s;wCtr=_wc;
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ██ TUTORIAL ██
+// ══════════════════════════════════════════════════════════════════
+
+const TUT_STEPS=[
+  {icon:'👋',title:'Witaj w ShiftMaster!',
+   desc:'ShiftMaster to generator grafików zmianowych dla zespołów. Każdy członek zespołu może wpisywać swoje preferencje, a lider zatwierdza gotowy grafik.\n\nTen tutorial przeprowadzi Cię przez wszystkie funkcje.'},
+  {icon:'👥',title:'1. Utwórz lub dołącz do zespołu',
+   desc:'<b>Lider zespołu</b> tworzy zespół podając nazwę i hasło, a następnie udostępnia wygenerowany link współpracownikom.\n\n<b>Członek zespołu</b> otwiera link, wpisuje hasło i swoje imię. Wszystkie zmiany synchronizują się w czasie rzeczywistym.\n\nMożesz też pracować <b>lokalnie</b> bez zespołu.'},
+  {icon:'➕',title:'2. Dodaj pracowników',
+   desc:'W panelu bocznym „Pracownicy" kliknij <b>+ Dodaj pracownika</b>.\n\nDla każdego pracownika możesz:\n• Zmienić imię (kliknij w pole nazwy)\n• Włączyć opcję <b>„Min. 2 dni w biurze"</b> — algorytm przydzieli co najmniej 2 dniówki Pn-Pt tygodniowo\n• Usunąć pracownika przyciskiem ×'},
+  {icon:'📅',title:'3. Ustaw dostępność',
+   desc:'Rozwiń kartę pracownika strzałką ▾. Zobaczysz mini-kalendarz.\n\nWybierz tryb oznaczania:\n• <b style="color:var(--purple)">🏖 Urlop</b> — Pn-Pt liczy +8h, weekend 0h\n• <b style="color:var(--gray)">🚫 Niedostępny</b> — brak zmian tego dnia\n• <b style="color:var(--yellow)">☽ Tylko noc</b> — blokada dniówki\n• <b style="color:var(--orange)">☀ Tylko dzień</b> — blokada nocki\n• <b>✕ Wyczyść</b> — usuwa oznaczenie\n\nKliknij dni w kalendarzu aby je oznaczyć.'},
+  {icon:'📆',title:'4. Skonfiguruj weekendy',
+   desc:'Przejdź do zakładki <b>📅 Weekendy</b> w panelu bocznym.\n\nDla każdego weekendu wybierz tryb:\n• <b style="color:#1a7fa8">24h</b> — jedna zmiana całodobowa\n• <b style="color:var(--green)">D+N</b> — dwie zmiany po 12h (dzień + noc)\n• <b>Wolny</b> — brak zmian w ten weekend'},
+  {icon:'⚡',title:'5. Generuj grafik',
+   desc:'Kliknij przycisk <b>„⚡ Generuj Grafik"</b> na dole panelu.\n\nW zakładce <b>⚙ Opcje</b> możesz ustawić:\n• Max 3 nocki/dniówki z rzędu\n• Liczbę wariantów grafiku (1-10)\n• Tolerancję odchylenia godzin\n\nAlgorytm wygeneruje optymalne grafiki z wyrównanymi godzinami.'},
+  {icon:'✏️',title:'6. Edytuj ręcznie',
+   desc:'Po wygenerowaniu kliknij <b>dowolną komórkę</b> w tabeli grafiku aby zmienić typ zmiany:\n• D — Dniówka 12h\n• N — Nocka 12h\n• 24h — Weekend całodobowy\n• U — Urlop\n• — — Niedostępny\n• (puste) — brak przypisania'},
+  {icon:'✅',title:'7. Zatwierdź grafik',
+   desc:'Gdy grafik jest gotowy, kliknij przycisk <b>„✓ Zatwierdź"</b> przy wybranym wariancie.\n\nZatwierdzony grafik:\n• Wyświetla się jako <b style="color:var(--green)">zielony baner</b> na górze strony\n• Jest widoczny dla <b>całego zespołu</b>\n• Można go pobrać jako Excel\n• Można cofnąć zatwierdzenie w razie potrzeby'},
+  {icon:'📊',title:'8. Eksportuj do Excel',
+   desc:'Kliknij <b>„⬇ Excel"</b> przy dowolnym grafiku lub <b>„⬇ Eksportuj wszystkie"</b> na górze.\n\nPlik .xls otwiera się w Excel/LibreOffice z kolorami komórek, podsumowaniami i kontrolą obsady.\n\n<b style="color:var(--acc)">Gotowe! Powodzenia z grafikami! 🎉</b>'}
+];
+let _tutStep=0;
+
+function showTutorial(){
+  _tutStep=0;
+  renderTutStep();
+  document.getElementById('tutOverlay').style.display='';
+}
+
+function closeTutorial(){
+  document.getElementById('tutOverlay').style.display='none';
+  localStorage.setItem('sm_tut_done','1');
+}
+
+function tutNext(){if(_tutStep<TUT_STEPS.length-1){_tutStep++;renderTutStep();}}
+function tutPrev(){if(_tutStep>0){_tutStep--;renderTutStep();}}
+
+function renderTutStep(){
+  const s=TUT_STEPS[_tutStep];
+  const isLast=_tutStep===TUT_STEPS.length-1;
+  const isFirst=_tutStep===0;
+  const dots=TUT_STEPS.map((_,i)=>`<div class="tut-dot${i===_tutStep?' active':''}"></div>`).join('');
+  document.getElementById('tutOverlay').innerHTML=`<div class="tut-box">
+    <button class="tut-close" onclick="closeTutorial()">✕</button>
+    <div class="tut-step">
+      <div class="tut-icon">${s.icon}</div>
+      <div class="tut-title">${s.title}</div>
+      <div class="tut-desc">${s.desc}</div>
+      <div class="tut-dots">${dots}</div>
+      <div class="tut-btns">
+        ${isFirst?'':`<button class="tut-btn" onclick="tutPrev()">← Wstecz</button>`}
+        ${isLast
+          ?`<button class="tut-btn primary" onclick="closeTutorial()">Rozpocznij!</button>`
+          :`<button class="tut-btn primary" onclick="tutNext()">Dalej →</button>`}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ██ INIT ██
+// ══════════════════════════════════════════════════════════════════
+
+async function init(){
   const now=new Date();
-  // Domyślnie następny miesiąc
   const next=new Date(now.getFullYear(),now.getMonth()+1,1);
   document.getElementById('selM').value=next.getMonth()+1;
   document.getElementById('selY').value=next.getFullYear();
   const saved=localStorage.getItem('sm_theme')||'light';
   document.documentElement.dataset.theme=saved;
   document.getElementById('thBtn').textContent=saved==='dark'?'☀️':'🌙';
-  ['Anna','Bartosz','Celina','Dawid'].forEach(n=>addW(n));
+
+  // Firebase init
+  const fbOk=initFirebase();
+  if(!fbOk){
+    // Firebase nie skonfigurowany — tryb lokalny
+    document.getElementById('loginOverlay').style.display='none';
+    ['Anna','Bartosz','Celina','Dawid'].forEach(n=>addW(n));
+    buildWeModes();renderWEGrid();
+    if(!localStorage.getItem('sm_tut_done'))showTutorial();
+    return;
+  }
+
+  // Sprawdź istniejącą sesję
+  const ss=localStorage.getItem('sm_session');
+  const hashTid=(window.location.hash.match(/team=([a-z0-9]+)/)||[])[1];
+  if(ss){
+    try{
+      teamSession=JSON.parse(ss);
+      const doc=await db.collection('teams').doc(teamSession.teamId).get();
+      if(doc.exists&&doc.data().passwordHash===teamSession.passwordHash){
+        if(hashTid&&hashTid!==teamSession.teamId){
+          // Inny zespół w URL
+          document.getElementById('joinTeamId').value=hashTid;
+          teamSession=null;localStorage.removeItem('sm_session');
+        } else {
+          window.location.hash='team='+teamSession.teamId;
+          showApp();return;
+        }
+      } else {teamSession=null;localStorage.removeItem('sm_session');}
+    }catch(e){teamSession=null;localStorage.removeItem('sm_session');}
+  }
+
+  // Sprawdź hash URL
+  if(hashTid)document.getElementById('joinTeamId').value=hashTid;
+
+  // Pokaż login
   buildWeModes();renderWEGrid();
 }
 init();
