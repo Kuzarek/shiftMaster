@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="pl" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShiftMaster v6.2 — Generator Grafiku</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+[data-theme="dark"]{
+  --bg:#0e0e12;--surface:#16161d;--surface2:#1e1e28;--surface3:#2a2a38;
+  --border:#2e2e40;--border2:#3a3a54;
+  --text:#e8e8f0;--text2:#a0a0c0;--muted:#7070a0;--muted2:#505070;
+  --shadow:rgba(0,0,0,.4);--grid-line:rgba(108,99,255,.025);--hbg:#13131a;
+}
+[data-theme="light"]{
+  --bg:#f0f2f7;--surface:#fff;--surface2:#f4f5fb;--surface3:#eaebf5;
+  --border:#e0e0ee;--border2:#c8c8dc;
+  --text:#1a1a2e;--text2:#4a4a6a;--muted:#8080a8;--muted2:#b0b0cc;
+  --shadow:rgba(108,99,255,.07);--grid-line:rgba(108,99,255,.035);--hbg:#fff;
+}
+:root{
+  --acc:#6c63ff;--acc-h:#7d75ff;--acc-dim:rgba(108,99,255,.12);
+  --green:#16a34a; --green-dim:rgba(22,163,74,.12);  --green-bg:#dcfce7;
+  --yellow:#b45309;--yellow-dim:rgba(180,83,9,.1);   --yellow-bg:#fef3c7;
+  --red:#dc2626;   --red-dim:rgba(220,38,38,.12);    --red-bg:#fee2e2;
+  --blue:#2563eb;  --blue-dim:rgba(37,99,235,.12);   --blue-bg:#dbeafe;
+  --purple:#7c3aed;--purple-dim:rgba(124,58,237,.12);--purple-bg:#ede9fe;
+  --orange:#c2410c;--orange-dim:rgba(194,65,12,.1);  --orange-bg:#ffedd5;
+  --teal:#0d9488;  --teal-dim:rgba(13,148,136,.12);  --teal-bg:#ccfbf1;
+  --gray:#ea580c;  --gray-dim:rgba(234,88,12,.13);   --gray-bg:#fff7ed;
+  --r:10px;--rs:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;overflow-x:hidden;transition:background .25s,color .25s}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--grid-line) 1px,transparent 1px),linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+
+/* HEADER */
+header{position:relative;z-index:10;padding:13px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:11px;background:var(--hbg)}
+.logo{width:34px;height:34px;background:var(--acc);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 3px 12px rgba(108,99,255,.35);flex-shrink:0}
+header h1{font-size:19px;font-weight:800;letter-spacing:-.5px}
+header h1 span{color:var(--acc)}
+.subtitle{font-family:'DM Mono',monospace;font-size:8px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-top:1px}
+.hacts{margin-left:auto;display:flex;gap:5px;align-items:center}
+.thbtn{background:var(--surface2);border:1px solid var(--border);border-radius:20px;cursor:pointer;font-size:13px;padding:4px 9px;transition:all .2s;line-height:1}
+.thbtn:hover{border-color:var(--acc)}
+.hbtn{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:8px;padding:5px 8px;transition:all .15s;white-space:nowrap}
+.hbtn:hover{border-color:var(--acc);color:var(--acc)}
+.hbtn.sv:hover{border-color:var(--teal);color:var(--teal)}
+.toast{font-family:'DM Mono',monospace;font-size:8px;color:var(--teal);opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+
+/* LAYOUT */
+.app{position:relative;z-index:1;display:grid;grid-template-columns:390px 1fr;height:calc(100vh - 62px)}
+
+/* SIDEBAR */
+.sidebar{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:var(--surface)}
+.stabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.stab{flex:1;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;font-family:'Syne',sans-serif;font-size:9px;font-weight:700;letter-spacing:.5px;padding:9px 3px;text-transform:uppercase;transition:all .2s;margin-bottom:-1px}
+.stab.active{color:var(--acc);border-bottom-color:var(--acc)}
+.spanel{display:none;flex-direction:column;gap:13px;overflow-y:auto;padding:14px 14px 10px;flex:1}
+.spanel.active{display:flex}
+.sec{font-size:8px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:7px;display:flex;align-items:center;gap:8px}
+.sec::after{content:'';flex:1;height:1px;background:var(--border)}
+label{display:block;font-size:8px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+input,select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:'DM Mono',monospace;font-size:12px;padding:6px 9px;outline:none;transition:border-color .2s}
+input:focus,select:focus{border-color:var(--acc)}
+.drow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+/* WORKER CARDS */
+.wcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;transition:border-color .2s;box-shadow:0 1px 3px var(--shadow)}
+.wcard.exp{border-color:var(--acc);box-shadow:0 2px 8px var(--acc-dim)}
+.whead{display:flex;align-items:center;gap:6px;padding:9px 10px}
+.wdot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.wname{flex:1;background:transparent;border:none;border-bottom:1px solid transparent;border-radius:0;color:var(--text);font-family:'Syne',sans-serif;font-weight:700;font-size:13px;padding:1px 0}
+.wname:focus{outline:none;border-bottom-color:var(--acc)}
+.wbadges{display:flex;gap:3px;flex-shrink:0}
+.wbadge{font-family:'DM Mono',monospace;font-size:7px;padding:2px 4px;border-radius:3px;border:1px solid;white-space:nowrap}
+.bc{background:var(--surface2);border-color:var(--border);color:var(--muted)}
+.bo{background:var(--teal-bg);border-color:var(--teal);color:var(--teal)}
+[data-theme="dark"] .bo{background:var(--teal-dim)}
+.warr{background:none;border:none;color:var(--muted);cursor:pointer;font-size:10px;padding:2px 4px;transition:transform .2s;line-height:1;flex-shrink:0}
+.warr.op{transform:rotate(180deg)}
+.wdel{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:0 2px;transition:color .2s;flex-shrink:0}
+.wdel:hover{color:var(--red)}
+.wbody{padding:0 10px 10px;border-top:1px solid var(--border)}
+.wopts{padding:8px 0 6px;border-bottom:1px solid var(--border);margin-bottom:3px;display:flex;flex-direction:column;gap:5px}
+.chkr{display:flex;align-items:flex-start;gap:7px;cursor:pointer;user-select:none}
+.chkr input[type=checkbox]{width:13px;height:13px;margin-top:1px;accent-color:var(--acc);cursor:pointer;flex-shrink:0}
+.chkl{font-size:11px;color:var(--text);line-height:1.4}
+.chkn{font-family:'DM Mono',monospace;font-size:7px;color:var(--muted);margin-left:20px;line-height:1.5;margin-top:1px}
+
+/* CLICK MODES */
+.cmodes{display:flex;gap:3px;margin:7px 0 4px;flex-wrap:wrap}
+.cmbtn{border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:8px;padding:3px 5px;transition:all .1s;white-space:nowrap}
+.cmbtn.on-vac   {background:var(--purple);border-color:var(--purple);color:#fff}
+.cmbtn.on-off   {background:var(--gray);border-color:var(--gray);color:#fff}
+.cmbtn.on-no-d  {background:var(--yellow);border-color:var(--yellow);color:#fff}
+[data-theme="light"] .cmbtn.on-no-d{color:#1a1a2e}
+.cmbtn.on-no-n  {background:var(--orange);border-color:var(--orange);color:#fff}
+.cmbtn.on-clr   {background:var(--muted2);border-color:var(--muted2);color:#fff}
+.mhint{font-size:7px;font-family:'DM Mono',monospace;color:var(--muted);margin-bottom:5px;line-height:1.5;min-height:10px}
+
+/* MINI CALENDAR */
+.calhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.caltit{font-size:9px;font-weight:600;color:var(--muted)}
+.calcnt{font-family:'DM Mono',monospace;font-size:7px;color:var(--muted)}
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.caldn{text-align:center;font-family:'DM Mono',monospace;font-size:7px;color:var(--muted2);padding:1px 0}
+.cald{border-radius:3px;cursor:pointer;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);border:1px solid transparent;transition:all .1s;user-select:none}
+.cald:hover:not(.emp){background:var(--surface3);color:var(--text)}
+.cald.emp{cursor:default;pointer-events:none}
+.cald.we{color:var(--muted2)}
+.cald.rv  {background:var(--purple-bg)!important;color:var(--purple)!important;border-color:var(--purple)!important;font-weight:700}
+.cald.rvw {background:var(--blue-bg)!important;  color:var(--blue)!important;  border-color:var(--blue)!important;  font-weight:700}
+.cald.roff{background:var(--gray-bg)!important;  color:var(--gray)!important;  border-color:var(--gray)!important;  font-weight:700}
+.cald.rnd {background:var(--yellow-bg)!important;color:var(--yellow)!important;border-color:var(--yellow)!important}
+.cald.rnn {background:var(--orange-bg)!important;color:var(--orange)!important;border-color:var(--orange)!important}
+.cald.rnb {background:var(--red-bg)!important;   color:var(--red)!important;   border-color:var(--red)!important}
+[data-theme="dark"] .cald.rv  {background:var(--purple-dim)!important}
+[data-theme="dark"] .cald.rvw {background:var(--blue-dim)!important}
+[data-theme="dark"] .cald.roff{background:var(--gray-dim)!important}
+[data-theme="dark"] .cald.rnd {background:var(--yellow-dim)!important;color:#f1c40f!important}
+[data-theme="dark"] .cald.rnn {background:var(--orange-dim)!important}
+[data-theme="dark"] .cald.rnb {background:var(--red-dim)!important}
+.calleg{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
+.cli{display:flex;align-items:center;gap:3px;font-size:7px;font-family:'DM Mono',monospace;color:var(--muted2)}
+.clidot{width:6px;height:6px;border-radius:1px;flex-shrink:0;border:1px solid}
+
+/* WEEKEND CONFIG */
+.wegrid{display:flex;flex-direction:column;gap:3px}
+.werow{display:flex;align-items:center;gap:6px;padding:5px 7px;background:var(--surface2);border-radius:5px;border:1px solid var(--border)}
+.wedate{font-family:'DM Mono',monospace;font-size:9px;color:var(--text);flex:1}
+.webtns{display:flex;gap:2px}
+.webtn{border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;font-size:8px;padding:2px 5px;transition:all .12s}
+.webtn.a24{background:var(--red-bg);border-color:var(--red);color:var(--red)}
+[data-theme="dark"] .webtn.a24{background:var(--red-dim)}
+.webtn.asp{background:var(--green-bg);border-color:var(--green);color:var(--green)}
+[data-theme="dark"] .webtn.asp{background:var(--green-dim)}
+.webtn.awol{background:var(--surface3);border-color:var(--border2);color:var(--muted)}
+
+/* GEN BUTTON */
+.genwrap{padding:0 14px 14px;flex-shrink:0}
+.genbtn{background:var(--acc);border:none;border-radius:var(--r);color:#fff;cursor:pointer;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;padding:11px;width:100%;transition:all .2s;text-transform:uppercase}
+.genbtn:hover{background:var(--acc-h);transform:translateY(-1px);box-shadow:0 6px 18px rgba(108,99,255,.3)}
+.genbtn:active{transform:none}
+.genbtn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.addwbtn{background:transparent;border:1px dashed var(--border);border-radius:var(--r);color:var(--muted);cursor:pointer;padding:7px;width:100%;font-family:'Syne',sans-serif;font-size:11px;font-weight:600;transition:all .2s}
+.addwbtn:hover{border-color:var(--acc);color:var(--acc)}
+
+/* MAIN */
+.main{display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.main-inner{flex:1;overflow:auto;padding:16px 20px;display:flex;flex-direction:column;gap:22px}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:11px;color:var(--muted);text-align:center;min-height:280px}
+.empty-icon{font-size:42px;opacity:.2}
+.empty h2{font-size:15px;color:var(--text);opacity:.3}
+.empty p{font-size:10px;font-family:'DM Mono',monospace;opacity:.35;max-width:280px;line-height:1.8}
+
+/* SCHEDULE BLOCK (stacked) */
+.sched-block{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:0 2px 8px var(--shadow)}
+.sched-hdr{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border);background:var(--surface2)}
+.sched-num{font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:var(--acc)}
+.sched-meta{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);flex:1}
+.expbtn{background:var(--surface);border:1px solid var(--border);border-radius:5px;color:var(--text);cursor:pointer;font-family:'Syne',sans-serif;font-size:9px;font-weight:700;letter-spacing:.5px;padding:4px 9px;text-transform:uppercase;transition:all .2s;flex-shrink:0}
+.expbtn:hover{border-color:var(--green);color:var(--green)}
+.expall-wrap{display:flex;justify-content:flex-end}
+.expall-btn{background:var(--acc);border:none;border-radius:var(--rs);color:#fff;cursor:pointer;font-family:'Syne',sans-serif;font-size:10px;font-weight:700;letter-spacing:.5px;padding:7px 14px;text-transform:uppercase;transition:all .2s}
+.expall-btn:hover{background:var(--acc-h);box-shadow:0 4px 12px rgba(108,99,255,.3)}
+
+/* STATS */
+.sbar{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px 14px;border-bottom:1px solid var(--border)}
+.scard{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:9px 11px}
+.slbl{font-size:7px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.sval{font-family:'DM Mono',monospace;font-size:18px;font-weight:500;color:var(--acc)}
+.ssub{font-size:7px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:1px}
+.hvis{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:7px}
+.hrow{display:flex;align-items:center;gap:8px}
+.hname{width:70px;font-weight:700;font-size:11px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hbarw{flex:1;background:var(--surface2);border-radius:100px;height:5px;overflow:hidden}
+.hbar{height:100%;border-radius:100px;transition:width .5s}
+.hnum{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);width:34px;text-align:right;flex-shrink:0}
+.hbk{font-family:'DM Mono',monospace;font-size:8px;color:var(--muted2);width:150px;text-align:right;flex-shrink:0}
+
+/* TABLE */
+.twrap{overflow:auto}
+table{border-collapse:collapse;width:100%;min-width:500px;background:var(--surface)}
+th{background:var(--surface2);font-family:'DM Mono',monospace;font-size:8px;font-weight:600;padding:5px 2px;text-align:center;color:var(--muted);border-bottom:1px solid var(--border);border-right:1px solid var(--border);white-space:nowrap}
+th.wcol{text-align:left;padding-left:9px;min-width:90px;position:sticky;left:0;z-index:3}
+th.scol{border-left:2px solid var(--border);min-width:48px}
+th.weh{background:var(--acc-dim);color:var(--acc)}
+td{padding:0;border:1px solid var(--border);text-align:center;vertical-align:middle}
+td.wn{font-weight:700;font-size:11px;padding:5px 9px;text-align:left;background:var(--surface);border-right:2px solid var(--border);white-space:nowrap;position:sticky;left:0;z-index:2}
+.cell{display:flex;align-items:center;justify-content:center;height:30px;font-family:'DM Mono',monospace;font-size:9px;font-weight:700;cursor:pointer;transition:filter .1s;position:relative}
+.cell:hover{filter:brightness(.93)}
+/* cell types */
+.cd  {background:var(--green-bg);  color:var(--green)}
+.cn  {background:var(--yellow-bg); color:var(--yellow)}
+.c24 {background:var(--red-bg);    color:var(--red)}
+.co  {background:var(--teal-bg);   color:var(--teal)}
+.cuwd{background:var(--purple-bg); color:var(--purple)}
+.cuwe{background:var(--blue-bg);   color:var(--blue)}
+.coff{background:var(--gray-bg);   color:var(--gray)}
+.cwe {background:var(--acc-dim)}
+.cr  {font-size:8px;color:var(--muted2)}
+[data-theme="dark"] .cd  {background:var(--green-dim); color:#4ade80}
+[data-theme="dark"] .cn  {background:var(--yellow-dim);color:#fbbf24}
+[data-theme="dark"] .c24 {background:var(--red-dim);   color:#f87171}
+[data-theme="dark"] .co  {background:var(--teal-dim);  color:#2dd4bf}
+[data-theme="dark"] .cuwd{background:var(--purple-dim);color:#c084fc}
+[data-theme="dark"] .cuwe{background:var(--blue-dim);  color:#60a5fa}
+[data-theme="dark"] .coff{background:rgba(234,88,12,.15);color:#fb923c}
+td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
+.sv{font-family:'DM Mono',monospace;font-size:10px;font-weight:700;padding:5px 7px}
+
+/* CELL POPUP MENU */
+.cell-menu{position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);box-shadow:0 8px 24px rgba(0,0,0,.18);padding:4px;display:flex;flex-direction:column;gap:2px;min-width:120px}
+.cmitem{background:none;border:none;border-radius:4px;color:var(--text);cursor:pointer;font-family:'DM Mono',monospace;font-size:10px;padding:5px 9px;text-align:left;transition:background .1s;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.cmitem:hover{background:var(--surface2)}
+.cmitem .dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+
+/* LEGEND */
+.legrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:9px 14px;border-top:1px solid var(--border)}
+.legitem{display:flex;align-items:center;gap:4px;font-size:9px;font-family:'DM Mono',monospace;color:var(--text2)}
+.legdot{width:13px;height:13px;border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:7px;font-family:'DM Mono',monospace;font-weight:700}
+
+.alert{background:var(--red-bg);border:1px solid var(--red);border-radius:var(--r);color:var(--red);padding:11px 14px;font-size:10px;font-family:'DM Mono',monospace}
+[data-theme="dark"] .alert{background:var(--red-dim)}
+.spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">⚡</div>
+  <div><h1>Shift<span>Master</span></h1><div class="subtitle">Generator grafiku · v6.2</div></div>
+  <div class="hacts">
+    <span class="toast" id="toast"></span>
+    <button class="thbtn" onclick="togTheme()" id="thBtn">🌙</button>
+    <button class="hbtn sv" onclick="saveW()">💾 Zapisz pracowników</button>
+    <button class="hbtn" onclick="loadW()">📂 Wczytaj pracowników</button>
+    <button class="hbtn" onclick="clearSave()" style="opacity:.45">🗑</button>
+  </div>
+</header>
+<div class="app">
+<aside class="sidebar">
+  <div class="stabs">
+    <button class="stab active" onclick="showP('pw',this)">👥 Pracownicy</button>
+    <button class="stab" onclick="showP('pwe',this)">📅 Weekendy</button>
+    <button class="stab" onclick="showP('ps',this)">⚙ Opcje</button>
+  </div>
+  <div class="spanel active" id="pw">
+    <div>
+      <div class="sec">Miesiąc</div>
+      <div class="drow">
+        <div><label>Miesiąc</label>
+          <select id="selM" onchange="onMC()">
+            <option value="1">Styczeń</option><option value="2">Luty</option>
+            <option value="3">Marzec</option><option value="4">Kwiecień</option>
+            <option value="5">Maj</option><option value="6">Czerwiec</option>
+            <option value="7">Lipiec</option><option value="8">Sierpień</option>
+            <option value="9">Wrzesień</option><option value="10">Październik</option>
+            <option value="11">Listopad</option><option value="12">Grudzień</option>
+          </select>
+        </div>
+        <div><label>Rok</label><input type="number" id="selY" value="2026" min="2024" max="2030" onchange="onMC()"></div>
+      </div>
+    </div>
+    <div>
+      <div class="sec">Pracownicy</div>
+      <div id="wlist" style="display:flex;flex-direction:column;gap:5px"></div>
+      <button class="addwbtn" onclick="addW()" style="margin-top:6px">+ Dodaj pracownika</button>
+    </div>
+  </div>
+  <div class="spanel" id="pwe">
+    <div>
+      <div class="sec">Tryb weekendów</div>
+      <p style="font-size:9px;color:var(--muted);line-height:1.7;margin-bottom:9px;font-family:'DM Mono',monospace">
+        <b style="color:var(--red)">24h</b> całodobowa · <b style="color:var(--green)">D+N</b> dzień+noc · <b style="color:var(--muted)">Wolny</b>
+      </p>
+      <div class="wegrid" id="wegrid"></div>
+    </div>
+  </div>
+  <div class="spanel" id="ps">
+    <div>
+      <div class="sec">Generator</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <label class="chkr"><input type="checkbox" id="chkN"><span class="chkl">Max 3 nocki z rzędu</span></label>
+        <label class="chkr"><input type="checkbox" id="chkD"><span class="chkl">Max 3 dniówki z rzędu</span></label>
+        <div><label>Liczba grafików</label>
+          <select id="selC"><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option><option value="10">10</option></select>
+        </div>
+        <div><label>Max odchylenie godzin</label><input type="number" id="selT" value="24" min="0" max="120"></div>
+      </div>
+    </div>
+    <div>
+      <div class="sec">Legenda kolorów</div>
+      <div style="display:flex;flex-direction:column;gap:4px;font-family:'DM Mono',monospace;font-size:9px;color:var(--text2)">
+        <div style="display:flex;align-items:center;gap:6px"><div style="width:20px;height:14px;border-radius:2px;background:var(--green-bg);border:1px solid var(--green);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--green)">D</div>Dniówka 12h</div>
+        <div style="display:flex;align-items:center;gap:6px"><div style="width:20px;height:14px;border-radius:2px;background:var(--yellow-bg);border:1px solid var(--yellow);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--yellow)">N</div>Nocka 12h</div>
+        <div style="display:flex;align-items:center;gap:6px"><div style="width:20px;height:14px;border-radius:2px;background:var(--red-bg);border:1px solid var(--red);display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:var(--red)">24h</div>Weekend</div>
+        <div style="display:flex;align-items:center;gap:6px"><div style="width:20px;height:14px;border-radius:2px;background:var(--teal-bg);border:1px solid var(--teal);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--teal)">B</div>Biuro Pn-Pt</div>
+        <div style="display:flex;align-items:center;gap:6px"><div style="width:20px;height:14px;border-radius:2px;background:var(--purple-bg);border:1px solid var(--purple);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--purple)">U</div>Urlop Pn-Pt (+8h)</div>
+        <div style="display:flex;align-items:center;gap:6px"><div style="width:20px;height:14px;border-radius:2px;background:var(--blue-bg);border:1px solid var(--blue);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--blue)">U</div>Urlop Sb-Nd (0h)</div>
+        <div style="display:flex;align-items:center;gap:6px"><div style="width:20px;height:14px;border-radius:2px;background:var(--gray-bg);border:1px solid var(--gray);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--gray)">—</div>Niedostępny (0h)</div>
+        <div style="margin-top:2px;color:var(--muted);line-height:1.6">Kliknij kafelek w grafiku aby zmienić ręcznie typ zmiany.</div>
+      </div>
+    </div>
+  </div>
+  <div class="genwrap">
+    <button class="genbtn" id="genBtn" onclick="runGen()">⚡ Generuj Grafik</button>
+  </div>
+</aside>
+<main class="main">
+  <div class="main-inner" id="mainInner">
+    <div class="empty">
+      <div class="empty-icon">📅</div>
+      <h2>Brak grafiku</h2>
+      <p>Skonfiguruj pracowników, oznacz urlopy i kliknij „Generuj Grafik"</p>
+    </div>
+  </div>
+</main>
+</div>
+
+<div id="cellMenu" class="cell-menu" style="display:none"></div>
+
+<script>
+// ── CONSTANTS ──────────────────────────────────────────────────────
+const COLORS=['#6c63ff','#e11d48','#16a34a','#d97706','#0891b2','#7c3aed','#dc2626','#059669'];
+const MONTHS=['','Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
+const MSHORT=['','Sty','Lut','Mar','Kwi','Maj','Cze','Lip','Sie','Wrz','Paź','Lis','Gru'];
+const DNS=['Nd','Pn','Wt','Śr','Cz','Pt','Sb'];
+const LS='shiftmaster_v6';
+
+// day value meanings:
+// 'vac'   = urlop (Pn-Pt +8h, weekend 0h)
+// 'off'   = niedostępny (0h, nie można przypisać)
+// 'no-d'  = tylko noc (ograniczenie)
+// 'no-n'  = tylko dzień (ograniczenie)
+// 'no-both'= oba zablokowane
+
+let wCtr=0, workers=[], weModes={}, cmode={}, schedules=[];
+
+// ── UTILS ──────────────────────────────────────────────────────────
+const dim=(y,m)=>new Date(y,m,0).getDate();
+const dstr=(y,m,d)=>`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+const addD=(s,n)=>{const d=new Date(s);d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
+const dow=(y,m,d)=>new Date(y,m-1,d).getDay();
+const isWD=(y,m,d)=>{const w=dow(y,m,d);return w>=1&&w<=5};
+const ym=()=>({y:+document.getElementById('selY').value,m:+document.getElementById('selM').value});
+
+// ── THEME ──────────────────────────────────────────────────────────
+function togTheme(){
+  const h=document.documentElement,d=h.dataset.theme==='dark';
+  h.dataset.theme=d?'light':'dark';
+  document.getElementById('thBtn').textContent=d?'🌙':'☀️';
+  localStorage.setItem('sm_theme',h.dataset.theme);
+}
+(()=>{
+  const s=localStorage.getItem('sm_theme')||'light';
+  document.documentElement.dataset.theme=s;
+  document.addEventListener('DOMContentLoaded',()=>{document.getElementById('thBtn').textContent=s==='dark'?'☀️':'🌙';});
+})();
+
+// ── SAVE / LOAD ────────────────────────────────────────────────────
+function saveW(){
+  try{
+    localStorage.setItem(LS,JSON.stringify({
+      workers:workers.map(w=>({id:w.id,name:w.name,color:w.color,office2:!!w.office2,days:w.days||{}})),
+      ctr:wCtr
+    }));
+    toast('✓ Zapisano '+workers.length+' pracowników');
+  }catch(e){toast('✗ Błąd zapisu');}
+}
+function loadW(){
+  try{
+    const raw=localStorage.getItem(LS);if(!raw){toast('Brak danych');return;}
+    const d=JSON.parse(raw);
+    workers=d.workers.map(w=>({...w,_open:false,days:w.days||{}}));
+    wCtr=d.ctr||workers.length;
+    workers.forEach(w=>{cmode[w.id]='vac';});
+    renderWorkers();toast('✓ Wczytano '+workers.length+' pracowników');
+  }catch(e){toast('✗ Błąd wczytywania');}
+}
+function clearSave(){localStorage.removeItem(LS);toast('✓ Wyczyszczono');}
+function toast(msg){
+  const el=document.getElementById('toast');el.textContent=msg;el.style.opacity='1';
+  clearTimeout(el._t);el._t=setTimeout(()=>el.style.opacity='0',2500);
+}
+
+// ── SIDEBAR ────────────────────────────────────────────────────────
+function showP(id,btn){
+  document.querySelectorAll('.spanel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');btn.classList.add('active');
+}
+
+// ── MONTH / WEEKEND ────────────────────────────────────────────────
+function onMC(){buildWeModes();renderWorkers();renderWEGrid();}
+function buildWeModes(){
+  const {y,m}=ym();const n=dim(y,m);const nx={};
+  for(let d=1;d<=n;d++)if(dow(y,m,d)===6){const s=dstr(y,m,d);nx[s]=weModes[s]||'24h';}
+  weModes=nx;
+}
+function setWEMode(s,mode){weModes[s]=mode;renderWEGrid();}
+function renderWEGrid(){
+  const {y,m}=ym();const n=dim(y,m);const g=document.getElementById('wegrid');if(!g)return;
+  let h='';
+  for(let d=1;d<=n;d++){
+    if(dow(y,m,d)!==6)continue;
+    const s=dstr(y,m,d);const nd=d<n?d+1:null;const mo=weModes[s]||'24h';
+    h+=`<div class="werow">
+      <div class="wedate">${d}${nd?'/'+nd:''} ${MSHORT[m]} <span style="color:var(--muted2);font-size:7px">Sb${nd?'/Nd':''}</span></div>
+      <div class="webtns">
+        <button class="webtn ${mo==='24h'?'a24':''}" onclick="setWEMode('${s}','24h')">24h</button>
+        <button class="webtn ${mo==='split'?'asp':''}" onclick="setWEMode('${s}','split')">D+N</button>
+        <button class="webtn ${mo==='wolny'?'awol':''}" onclick="setWEMode('${s}','wolny')">Wolny</button>
+      </div>
+    </div>`;
+  }
+  g.innerHTML=h||'<p style="font-size:9px;color:var(--muted)">Brak weekendów</p>';
+}
+
+// ── WORKERS ────────────────────────────────────────────────────────
+function addW(name){
+  const id=wCtr++;
+  workers.push({id,name:name||`Pracownik ${id+1}`,color:COLORS[workers.length%COLORS.length],_open:false,office2:false,days:{}});
+  cmode[id]='vac';renderWorkers();
+}
+function delW(id){workers=workers.filter(w=>w.id!==id);renderWorkers();}
+function renderWorkers(){
+  const {y,m}=ym();const list=document.getElementById('wlist');list.innerHTML='';
+  workers.forEach(w=>{
+    const div=document.createElement('div');
+    div.className='wcard'+(w._open?' exp':'');div.id='wc'+w.id;
+    div.innerHTML=buildWCard(w,y,m);list.appendChild(div);
+  });
+}
+function buildWCard(w,y,m){
+  const cnt=Object.keys(w.days).length;
+  const badges=(cnt?`<span class="wbadge bc">${cnt}×</span>`:'')+
+               (w.office2?`<span class="wbadge bo">🏢</span>`:'');
+  const body=w._open?`<div class="wbody">${buildWOpts(w)}${buildCal(w,y,m)}</div>`:'';
+  return `<div class="whead">
+    <div class="wdot" style="background:${w.color}"></div>
+    <input class="wname" value="${w.name}" oninput="workers.find(x=>x.id===${w.id}).name=this.value" placeholder="Imię">
+    <div class="wbadges">${badges}</div>
+    <button class="warr${w._open?' op':''}" onclick="togW(${w.id})">▾</button>
+    <button class="wdel" onclick="delW(${w.id})">×</button>
+  </div>${body}`;
+}
+function buildWOpts(w){
+  return `<div class="wopts">
+    <label class="chkr"><input type="checkbox" ${w.office2?'checked':''} onchange="setOff(${w.id},this.checked)">
+      <span class="chkl">Min. 2 dni w biurze / tydzień (Pn–Pt)</span></label>
+    <div class="chkn">Algorytm preferuje dniówki dla tej osoby; nocek i weekendów dostaje mniej żeby godziny były równe.</div>
+  </div>`;
+}
+function setOff(id,v){
+  const w=workers.find(x=>x.id===id);if(!w)return;
+  w.office2=v;const {y,m}=ym();document.getElementById('wc'+id).innerHTML=buildWCard(w,y,m);
+}
+function togW(id){
+  const w=workers.find(x=>x.id===id);if(!w)return;
+  w._open=!w._open;const {y,m}=ym();
+  const c=document.getElementById('wc'+id);
+  c.className='wcard'+(w._open?' exp':'');c.innerHTML=buildWCard(w,y,m);
+}
+
+// ── MINI CALENDAR ─────────────────────────────────────────────────
+const CM={
+  vac:  {l:'🏖 Urlop',      h:'Urlop: Pn-Pt +8h; weekend 0h. Kliknij ponownie = odznacz'},
+  off:  {l:'🚫 Niedostępny',h:'Niedostępny: nie można przypisać żadnej zmiany, 0h'},
+  'no-d':{l:'☽ Tylko noc', h:'Blokada dniówki. Kliknij ponownie = odznacz'},
+  'no-n':{l:'☀ Tylko dzień',h:'Blokada nocki. Kliknij ponownie = odznacz'},
+  clr:  {l:'✕ Wyczyść',    h:'Usuwa oznaczenie klikniętego dnia'},
+};
+function buildCal(w,y,m){
+  const n=dim(y,m);const off=(dow(y,m,1)+6)%7;
+  const cm=cmode[w.id]||'vac';const cnt=Object.keys(w.days).length;
+  const btns=Object.entries(CM).map(([k,v])=>
+    `<button class="cmbtn${cm===k?' on-'+k:''}" onclick="setCM(${w.id},'${k}')">${v.l}</button>`
+  ).join('');
+  let g=`<div class="calgrid">${['Pn','Wt','Śr','Cz','Pt','Sb','Nd'].map(x=>`<div class="caldn">${x}</div>`).join('')}${Array(off).fill('<div class="cald emp"></div>').join('')}`;
+  for(let d=1;d<=n;d++){
+    const date=dstr(y,m,d);const wd=dow(y,m,d);const we=wd===0||wd===6;
+    const r=w.days[date];
+    let cls=we?'we':'';
+    if(r==='vac')cls+=we?' rvw':' rv';
+    else if(r==='off')cls+=' roff';
+    else if(r==='no-d')cls+=' rnd';
+    else if(r==='no-n')cls+=' rnn';
+    else if(r==='no-both')cls+=' rnb';
+    g+=`<div class="cald ${cls}" onclick="calClick(${w.id},'${date}')">${d}</div>`;
+  }
+  g+='</div>';
+  return `<div class="cmodes">${btns}</div>
+  <div class="mhint">${CM[cm].h}</div>
+  <div class="calhead"><span class="caltit">${MONTHS[m]} ${y}</span><span class="calcnt">${cnt} oznaczeń</span></div>
+  ${g}
+  <div class="calleg">
+    <div class="cli"><div class="clidot" style="background:var(--purple-bg);border-color:var(--purple)"></div>Urlop Pn-Pt</div>
+    <div class="cli"><div class="clidot" style="background:var(--blue-bg);border-color:var(--blue)"></div>Urlop Sb-Nd</div>
+    <div class="cli"><div class="clidot" style="background:var(--gray-bg);border-color:var(--gray)"></div>Niedostępny</div>
+    <div class="cli"><div class="clidot" style="background:var(--yellow-bg);border-color:var(--yellow)"></div>Tylko noc</div>
+    <div class="cli"><div class="clidot" style="background:var(--orange-bg);border-color:var(--orange)"></div>Tylko dzień</div>
+  </div>`;
+}
+function setCM(wid,mode){
+  cmode[wid]=mode;const w=workers.find(x=>x.id===wid);
+  if(w&&w._open){const {y,m}=ym();document.getElementById('wc'+wid).innerHTML=buildWCard(w,y,m);}
+}
+function calClick(wid,date){
+  const w=workers.find(x=>x.id===wid);if(!w)return;
+  const cm=cmode[wid]||'vac';const cur=w.days[date];
+  if(cm==='clr'){delete w.days[date];}
+  else if(cm==='vac'){cur==='vac'?delete w.days[date]:w.days[date]='vac';}
+  else if(cm==='off'){cur==='off'?delete w.days[date]:w.days[date]='off';}
+  else if(cm==='no-d'){
+    if(cur==='no-d')delete w.days[date];
+    else if(cur==='no-n')w.days[date]='no-both';
+    else if(cur==='no-both')w.days[date]='no-n';
+    else w.days[date]='no-d';
+  } else if(cm==='no-n'){
+    if(cur==='no-n')delete w.days[date];
+    else if(cur==='no-d')w.days[date]='no-both';
+    else if(cur==='no-both')w.days[date]='no-d';
+    else w.days[date]='no-n';
+  }
+  const {y,m}=ym();document.getElementById('wc'+wid).innerHTML=buildWCard(w,y,m);
+}
+
+// ── SHIFT GENERATION ──────────────────────────────────────────────
+function genShifts(y,m){
+  const n=dim(y,m);const shifts=[];
+  for(let d=1;d<=n;d++){
+    const date=dstr(y,m,d);const wd=dow(y,m,d);
+    if(wd>=1&&wd<=5){
+      shifts.push({date,type:'dzien',hours:12});
+      shifts.push({date,type:'noc',hours:12});
+    } else {
+      const satS=wd===6?date:dstr(y,m,d-1);
+      const mo=weModes[satS]||'24h';
+      if(mo==='24h')shifts.push({date,type:'24h',hours:24});
+      else if(mo==='split'){
+        shifts.push({date,type:'dzien',hours:12});
+        shifts.push({date,type:'noc',hours:12});
+      }
+    }
+  }
+  // Sortuj po dacie; w ramach daty: dzien przed noc
+  shifts.sort((a,b)=>a.date.localeCompare(b.date)||(a.type==='dzien'?-1:b.type==='dzien'?1:0));
+  return shifts;
+}
+
+// ── KWOTY (pre-obliczone przed generowaniem) ──────────────────────
+// To jest kluczowa zmiana względem poprzednich wersji.
+// Zamiast na bieżąco liczyć "skuteczne godziny" i liczyć na to że heurystyka
+// sama się wyreguluje (co nigdy nie działało), pre-obliczamy TWARDE LIMITY
+// dla każdego pracownika:
+//   - maxDzienWday: ile dniówek Pn-Pt może wziąć
+//   - maxNocWeH: ile godzin z nocek + weekendów może wziąć
+//
+// Dla pracownika z office2:
+//   maxDzienWday = numWeeks * 2  (obowiązkowe biurowe)
+//   maxNocWeH    = targetH - maxDzienWday*12  (reszta do celu)
+//
+// Dla normalnego pracownika:
+//   maxDzienWday = (totalWdayDzien - sumOfficeQuota) / numNormal  (co zostaje po biurowych)
+//   maxNocWeH    = targetH - maxDzienWday*12
+//
+// Dzięki temu suma godzin każdego pracownika wynosi ~targetH niezależnie od office2.
+
+function buildQuotas(y,m){
+  const n=dim(y,m);
+  // Policz dostępne zmiany
+  let wdayDzien=0,wdayNoc=0,weH=0;
+  for(let d=1;d<=n;d++){
+    const wd=dow(y,m,d);
+    if(wd>=1&&wd<=5){wdayDzien++;wdayNoc++;}
+    else{
+      const satS=wd===6?dstr(y,m,d):dstr(y,m,d-1);
+      const mo=weModes[satS]||'24h';
+      if(mo==='24h')weH+=24;
+      else if(mo==='split'){weH+=24;} // dzien+noc = 24h per worker slot
+    }
+  }
+  // Policz tygodnie robocze
+  const weekSet=new Set();
+  for(let d=1;d<=n;d++){
+    const wd=dow(y,m,d);if(wd<1||wd>5)continue;
+    const dt=new Date(y,m-1,d);dt.setDate(dt.getDate()-(wd-1));
+    weekSet.add(dt.toISOString().slice(0,10));
+  }
+  const numWeeks=weekSet.size;
+  const numW=workers.length;
+  const totalH=wdayDzien*12+wdayNoc*12+weH;
+  const targetH=totalH/numW;
+
+  const officeWorkers=workers.filter(w=>w.office2);
+  const normalWorkers=workers.filter(w=>!w.office2);
+
+  // Suma dniówek zarezerwowanych dla office2
+  const totalOfficeQuota=officeWorkers.length*numWeeks*2;
+  // Dniówki pozostałe dla normalnych (mogą być < 0 jeśli za dużo office2 workers)
+  const remainingDzien=Math.max(0,wdayDzien-totalOfficeQuota);
+  const normalDzienPerWorker=normalWorkers.length>0
+    ? remainingDzien/normalWorkers.length
+    : 0;
+
+  const quotas={};
+  workers.forEach(w=>{
+    if(w.office2){
+      const maxD=numWeeks*2;
+      const maxNocWeH=Math.max(0,targetH-maxD*12);
+      quotas[w.id]={maxDzienWday:maxD,maxNocWeH,target:targetH};
+    } else {
+      const maxD=normalDzienPerWorker;
+      const maxNocWeH=Math.max(0,targetH-maxD*12);
+      quotas[w.id]={maxDzienWday:maxD,maxNocWeH,target:targetH};
+    }
+  });
+  return quotas;
+}
+
+function weekOfficeCnt(wid,date,sched){
+  const d=new Date(date);const wd=d.getDay();
+  const mon=new Date(d);mon.setDate(d.getDate()-(wd===0?6:wd-1));
+  let cnt=0;
+  for(let i=0;i<5;i++){
+    const cd=new Date(mon);cd.setDate(mon.getDate()+i);
+    const ds=cd.toISOString().slice(0,10);
+    if(sched.some(e=>e.wid===wid&&e.date===ds&&e.type==='dzien'))cnt++;
+  }
+  return cnt;
+}
+
+// ── CONSTRAINTS ───────────────────────────────────────────────────
+function canAssign(w,shift,sched,cfg){
+  const {date,type}=shift;const wid=w.id;const r=w.days[date];
+  const q=cfg.quotas[wid];
+
+  if(r==='vac'||r==='off')return false;
+  if(type==='dzien'&&(r==='no-d'||r==='no-both'))return false;
+  if(type==='noc'&&(r==='no-n'||r==='no-both'))return false;
+  if(sched.some(e=>e.wid===wid&&e.date===date))return false;
+
+  const prev=addD(date,-1),next=addD(date,1);
+  const pe=sched.find(e=>e.wid===wid&&e.date===prev);
+  const ne=sched.find(e=>e.wid===wid&&e.date===next);
+  if(pe){
+    if(type==='dzien'&&(pe.type==='noc'||pe.type==='24h'))return false;
+    if(type==='noc'&&pe.type==='24h')return false;
+    if(type==='24h'&&pe.type==='24h')return false;
+  }
+  if(ne){
+    if((type==='noc'||type==='24h')&&ne.type==='dzien')return false;
+    if(type==='24h'&&ne.type==='24h')return false;
+  }
+  if(cfg.maxN&&type==='noc'){
+    let c=0,ch=prev;
+    for(let i=0;i<3;i++){const e=sched.find(x=>x.wid===wid&&x.date===ch);if(e&&e.type==='noc'){c++;ch=addD(ch,-1);}else break;}
+    if(c>=3)return false;
+  }
+  if(cfg.maxD&&type==='dzien'){
+    let c=0,ch=prev;
+    for(let i=0;i<3;i++){const e=sched.find(x=>x.wid===wid&&x.date===ch);if(e&&e.type==='dzien'){c++;ch=addD(ch,-1);}else break;}
+    if(c>=3)return false;
+  }
+
+  // ── KWOTY – twarde limity ──────────────────────────────────────
+  const wd=new Date(date).getDay();const isWday=wd>=1&&wd<=5;
+
+  if(type==='dzien'&&isWday){
+    // Twardy limit dniówek weekday wg kwoty
+    const myDzien=sched.filter(e=>e.wid===wid&&e.type==='dzien'&&
+      (()=>{const w2=new Date(e.date).getDay();return w2>=1&&w2<=5;})()).length;
+    if(myDzien>=q.maxDzienWday+cfg.tol/12)return false;
+    // Dla office2: max 2/tydzień
+    if(w.office2&&weekOfficeCnt(wid,date,sched)>=2)return false;
+  }
+
+  if(type==='noc'||type==='24h'||(type==='dzien'&&!isWday)){
+    // Limit godzin nocek+weekendów
+    const myNocWeH=sched.filter(e=>e.wid===wid&&(
+      e.type==='noc'||e.type==='24h'||(e.type==='dzien'&&(()=>{const w2=new Date(e.date).getDay();return w2===0||w2===6;})())
+    )).reduce((s,e)=>s+e.hours,0);
+    if(myNocWeH+shift.hours>q.maxNocWeH+cfg.tol)return false;
+  }
+
+  return true;
+}
+
+function wScore(w,shift,sched,cfg){
+  const wid=w.id;const q=cfg.quotas[wid];
+  // Sortuj po tym jak daleko pracownik jest od swojej kwoty
+  // (kto ma mniej % wypełnionego celu, ten dostaje priorytet)
+  const myH=sched.filter(e=>e.wid===wid).reduce((s,e)=>s+e.hours,0);
+  let score=myH/q.target; // 0..1, niższe = bardziej potrzebuje
+
+  // Dla office2: priorytet na dniówki weekday gdy nie wypełnił kwoty tygodniowej
+  if(w.office2&&shift.type==='dzien'){
+    const dw=new Date(shift.date).getDay();
+    if(dw>=1&&dw<=5&&weekOfficeCnt(wid,shift.date,sched)<2)score-=0.5;
+  }
+  score+=(Math.random()-.5)*0.15;
+  return score;
+}
+
+function backtrack(shifts,idx,sched,results,limit,cfg){
+  if(results.length>=limit)return;
+  if(idx===shifts.length){results.push([...sched]);return;}
+  const shift=shifts[idx];
+  const sorted=[...workers].sort((a,b)=>wScore(a,shift,sched,cfg)-wScore(b,shift,sched,cfg));
+  for(const w of sorted){
+    if(canAssign(w,shift,sched,cfg)){
+      sched.push({wid:w.id,date:shift.date,type:shift.type,hours:shift.hours});
+      backtrack(shifts,idx+1,sched,results,limit,cfg);
+      sched.pop();
+      if(results.length>=limit)return;
+    }
+  }
+}
+
+// ── RUNNER ────────────────────────────────────────────────────────
+function runGen(){
+  if(!workers.length){alert('Dodaj co najmniej 1 pracownika!');return;}
+  const btn=document.getElementById('genBtn');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Generowanie...';
+  setTimeout(()=>{
+    try{
+      const {y,m}=ym();
+      const tol=+document.getElementById('selT').value;
+      const count=+document.getElementById('selC').value;
+      const baseCfg={
+        maxN:document.getElementById('chkN').checked,
+        maxD:document.getElementById('chkD').checked,
+        count,tol,
+      };
+
+      // Strategia: najpierw próbuj z ustawieniami weekendów takimi jak są (domyślnie 24h).
+      // Jeśli udało się znaleźć wystarczająco dużo grafików – gotowe.
+      // Jeśli nie (lub za mało) – automatycznie przełącz wszystkie weekendy na split (D+N)
+      // i wygeneruj więcej grafików żeby uzupełnić brakującą liczbę.
+
+      const origWeModes={...weModes};
+
+      // Próba 1: oryginalne ustawienia
+      let cfg1={...baseCfg,quotas:buildQuotas(y,m)};
+      const results1=[];
+      backtrack(genShifts(y,m),0,[],results1,count,cfg1);
+
+      let finalResults=results1;
+      let fallbackUsed=false;
+
+      if(results1.length<count){
+        // Próba 2: wszystkie weekendy → split (D+N 12h)
+        const splitModes={};
+        Object.keys(origWeModes).forEach(k=>splitModes[k]='split');
+        const savedModes=weModes;
+        weModes=splitModes;
+
+        const need=count-results1.length;
+        // Generuj więcej żeby wyrównać – do count*2 prób
+        let cfg2={...baseCfg,count:need+count,quotas:buildQuotas(y,m)};
+        const results2=[];
+        backtrack(genShifts(y,m),0,[],results2,cfg2.count,cfg2);
+
+        weModes=savedModes; // przywróć oryginalne
+
+        if(results2.length>0){
+          fallbackUsed=true;
+          // Połącz: najpierw wyniki z 24h, potem z split
+          finalResults=[...results1,...results2].slice(0,count+results2.length);
+        }
+      }
+
+      schedules=finalResults;
+      if(!schedules.length){
+        document.getElementById('mainInner').innerHTML='<div class="alert">⚠ Nie udało się wygenerować grafiku. Zwiększ tolerancję godzin lub zmniejsz ograniczenia.</div>';
+      } else {
+        renderAll(y,m,fallbackUsed,results1.length);
+      }
+    }catch(e){document.getElementById('mainInner').innerHTML=`<div class="alert">⚠ Błąd: ${e.message}</div>`;}
+    btn.disabled=false;btn.innerHTML='⚡ Generuj Grafik';
+  },30);
+}
+
+// ── HOURS CALC ────────────────────────────────────────────────────
+function vacH(w,y,m){
+  let h=0;const n=dim(y,m);
+  for(let d=1;d<=n;d++)if(w.days[dstr(y,m,d)]==='vac'&&isWD(y,m,d))h+=8;
+  return h;
+}
+
+// ── RENDER ALL SCHEDULES (stacked) ────────────────────────────────
+// firstCount = ile grafików pochodzi z oryginalnych ustawień (reszta = split fallback)
+function renderAll(y,m,fallbackUsed=false,firstCount=schedules.length){
+  const mi=document.getElementById('mainInner');
+  let notice='';
+  if(fallbackUsed){
+    notice=`<div style="background:var(--yellow-bg);border:1px solid var(--yellow);border-radius:var(--r);padding:10px 14px;font-size:10px;font-family:'DM Mono',monospace;color:var(--yellow);margin-bottom:2px">
+      ⚠ Część grafików (${schedules.length-firstCount} szt.) wygenerowana z podziałem weekendów na zmiany 12h zamiast 24h — oryginalne ustawienia dały tylko ${firstCount} wynik(ów).
+    </div>`;
+  }
+  const exportAllBtn=`<div class="expall-wrap"><button class="expall-btn" onclick="exportXL(${y},${m})">⬇ Eksportuj wszystkie do Excel</button></div>`;
+  let html=notice+exportAllBtn;
+  schedules.forEach((_,i)=>{html+=`<div id="sb${i}"></div>`;});
+  mi.innerHTML=html;
+  // Store fallback info for renderSched badges
+  window._schedMeta={firstCount,fallbackUsed,y,m};
+  schedules.forEach((_,i)=>renderSched(i,y,m));
+}
+
+function renderSched(idx,y,m){
+  const sched=schedules[idx];const n=dim(y,m);
+  const hrs={};workers.forEach(w=>hrs[w.id]={d:0,n:0,t24:0,b:0,vac:vacH(w,y,m)});
+  sched.forEach(e=>{
+    if(!hrs[e.wid])hrs[e.wid]={d:0,n:0,t24:0,b:0,vac:0};
+    const wd=new Date(e.date).getDay();const iswd=wd>=1&&wd<=5;
+    const w=workers.find(x=>x.id===e.wid);
+    if(e.type==='dzien'){if(iswd&&w&&w.office2)hrs[e.wid].b+=12;else hrs[e.wid].d+=12;}
+    else if(e.type==='noc')hrs[e.wid].n+=12;
+    else hrs[e.wid].t24+=24;
+  });
+  const tots=workers.map(w=>{const h=hrs[w.id];return{w,total:h.d+h.n+h.t24+h.b+h.vac,...h};});
+  const maxH=Math.max(...tots.map(t=>t.total),1);
+  const minH=Math.min(...tots.map(t=>t.total));
+  const avgH=Math.round(tots.reduce((s,t)=>s+t.total,0)/tots.length);
+  const lkp={};sched.forEach(e=>{lkp[`${e.wid}_${e.date}`]=e.type;});
+
+  const meta=window._schedMeta||{};
+  const isSplit=meta.fallbackUsed&&idx>=meta.firstCount;
+  const modeBadge=isSplit
+    ? `<span style="background:var(--yellow-bg);border:1px solid var(--yellow);color:var(--yellow);font-family:'DM Mono',monospace;font-size:7px;padding:2px 5px;border-radius:3px;font-weight:700">WE: 12h split</span>`
+    : `<span style="background:var(--red-bg);border:1px solid var(--red);color:var(--red);font-family:'DM Mono',monospace;font-size:7px;padding:2px 5px;border-radius:3px;font-weight:700">WE: 24h</span>`;
+  const hdr=`<div class="sched-hdr">
+    <span class="sched-num">Grafik ${idx+1}</span>
+    ${modeBadge}
+    <span class="sched-meta">${MONTHS[m]} ${y} · śr. ${avgH}h · odch. ${maxH-minH}h · ${sched.length} zmian</span>
+    <button class="expbtn" onclick="exportXL(${y},${m},${idx})">⬇ Excel</button>
+  </div>`;
+
+  let bars=`<div class="hvis"><div class="sec" style="margin-bottom:3px">Godziny pracowników</div>`;
+  tots.forEach(t=>{
+    const pct=(t.total/maxH*100).toFixed(1);
+    bars+=`<div class="hrow">
+      <div class="hname" style="color:${t.w.color}">${t.w.name}</div>
+      <div class="hbarw"><div class="hbar" style="width:${pct}%;background:${t.w.color}"></div></div>
+      <div class="hnum">${t.total}h</div>
+      <div class="hbk">D:${t.d} N:${t.n} 24:${t.t24}${t.b?' B:'+t.b:''}${t.vac?' U:+'+t.vac:''}</div>
+    </div>`;
+  });
+  bars+='</div>';
+
+  let thead=`<thead><tr><th class="wcol">Pracownik</th>`;
+  for(let d=1;d<=n;d++){
+    const wd=dow(y,m,d);const we=wd===0||wd===6;
+    thead+=`<th${we?' class="weh"':''}><div>${d}</div><div style="font-size:6px;opacity:.7">${DNS[wd]}</div></th>`;
+  }
+  thead+=`<th class="scol">Suma</th></tr></thead>`;
+
+  let tbody='<tbody>';
+  workers.forEach(w=>{
+    tbody+=`<tr><td class="wn"><span style="color:${w.color};margin-right:4px">●</span>${w.name}${w.office2?' <span style="color:var(--teal);font-size:8px">🏢</span>':''}</td>`;
+    let wt=0;
+    for(let d=1;d<=n;d++){
+      const date=dstr(y,m,d);const wd=dow(y,m,d);
+      const we=wd===0||wd===6;const iswd=wd>=1&&wd<=5;
+      const r=w.days[date];const type=lkp[`${w.id}_${date}`];
+      let cls=we?'cwe':'';let lbl='';
+      if(r==='vac'){
+        if(we){cls='cuwe';lbl='U';}else{cls='cuwd';lbl='U';wt+=8;}
+      } else if(r==='off'){
+        cls='coff';lbl='—';
+      } else if(type==='dzien'){
+        if(iswd&&w.office2){cls='co';lbl='B';wt+=12;}else{cls='cd';lbl='D';wt+=12;}
+      } else if(type==='noc'){cls='cn';lbl='N';wt+=12;}
+      else if(type==='24h'){cls='c24';lbl='24h';wt+=24;}
+      else{
+        cls='cr'+(we?' cwe':'');
+        if(r==='no-d')lbl='·N';else if(r==='no-n')lbl='D·';else if(r==='no-both')lbl='✕';
+      }
+      tbody+=`<td><div class="cell ${cls}" onclick="openCellMenu(event,${idx},${w.id},'${date}')">${lbl}</div></td>`;
+    }
+    tbody+=`<td class="scol-td"><div class="sv" style="color:${w.color}">${wt}h</div></td></tr>`;
+  });
+  tbody+='</tbody>';
+
+  const leg=`<div class="legrow">
+    <div class="legitem"><div class="legdot" style="background:var(--green-bg);border:1px solid var(--green);color:var(--green)">D</div>Dzień</div>
+    <div class="legitem"><div class="legdot" style="background:var(--yellow-bg);border:1px solid var(--yellow);color:var(--yellow)">N</div>Noc</div>
+    <div class="legitem"><div class="legdot" style="background:var(--red-bg);border:1px solid var(--red);color:var(--red);font-size:7px">24h</div>Weekend</div>
+    <div class="legitem"><div class="legdot" style="background:var(--teal-bg);border:1px solid var(--teal);color:var(--teal)">B</div>Biuro</div>
+    <div class="legitem"><div class="legdot" style="background:var(--purple-bg);border:1px solid var(--purple);color:var(--purple)">U</div>Urlop Pn-Pt</div>
+    <div class="legitem"><div class="legdot" style="background:var(--blue-bg);border:1px solid var(--blue);color:var(--blue)">U</div>Urlop Sb-Nd</div>
+    <div class="legitem"><div class="legdot" style="background:var(--gray-bg);border:1px solid var(--gray);color:var(--gray)">—</div>Niedostępny</div>
+  </div>`;
+
+  document.getElementById('sb'+idx).innerHTML=`<div class="sched-block">${hdr}${bars}<div class="twrap"><table>${thead}${tbody}</table></div>${leg}</div>`;
+}
+
+// ── CELL CONTEXT MENU (manual edit) ──────────────────────────────
+const CELL_TYPES=[
+  {type:'dzien', lbl:'D — Dniówka 12h',    bg:'var(--green-bg)',  fg:'var(--green)',  h:12},
+  {type:'noc',   lbl:'N — Nocka 12h',       bg:'var(--yellow-bg)', fg:'var(--yellow)', h:12},
+  {type:'24h',   lbl:'24h — Weekend',        bg:'var(--red-bg)',    fg:'var(--red)',    h:24},
+  {type:'vac',   lbl:'U — Urlop',            bg:'var(--purple-bg)', fg:'var(--purple)', h:0},
+  {type:'off',   lbl:'— — Niedostępny',      bg:'var(--gray-bg)',   fg:'var(--gray)',   h:0},
+  {type:'none',  lbl:'(puste)',               bg:'transparent',      fg:'var(--muted2)', h:0},
+];
+
+let _menuCtx=null;
+function openCellMenu(evt,schedIdx,wid,date){
+  evt.stopPropagation();
+  const menu=document.getElementById('cellMenu');
+  _menuCtx={schedIdx,wid,date};
+  const {y,m}=ym();
+  const wd=new Date(date).getDay();const iswd=wd>=1&&wd<=5;
+  const w=workers.find(x=>x.id===wid);
+  menu.innerHTML=CELL_TYPES.map(ct=>`
+    <button class="cmitem" onclick="applyCellType('${ct.type}')">
+      <div class="dot" style="background:${ct.bg};border:1px solid ${ct.fg}"></div>
+      ${ct.lbl}
+    </button>`).join('');
+  // position
+  const r=evt.target.getBoundingClientRect();
+  let left=r.left,top=r.bottom+2;
+  if(left+140>window.innerWidth)left=window.innerWidth-144;
+  if(top+200>window.innerHeight)top=r.top-2-200;
+  menu.style.left=left+'px';menu.style.top=top+'px';menu.style.display='flex';
+}
+function applyCellType(type){
+  if(!_menuCtx)return;
+  const {schedIdx,wid,date}=_menuCtx;
+  const sched=schedules[schedIdx];
+  const {y,m}=ym();
+  const w=workers.find(x=>x.id===wid);
+  const wd=new Date(date).getDay();const iswd=wd>=1&&wd<=5;
+
+  if(type==='none'||type==='off'||type==='vac'){
+    // Remove shift from schedule
+    schedules[schedIdx]=sched.filter(e=>!(e.wid===wid&&e.date===date));
+    // Set day marker if vac/off
+    if(type==='vac')w.days[date]='vac';
+    else if(type==='off')w.days[date]='off';
+    else if(w.days[date]==='vac'||w.days[date]==='off')delete w.days[date];
+  } else {
+    // Remove existing entry for this worker+date
+    schedules[schedIdx]=sched.filter(e=>!(e.wid===wid&&e.date===date));
+    // Also clear any vac/off marker
+    if(w.days[date]==='vac'||w.days[date]==='off')delete w.days[date];
+    const hrs=type==='24h'?24:12;
+    schedules[schedIdx].push({wid,date,type,hours:hrs});
+    schedules[schedIdx].sort((a,b)=>a.date.localeCompare(b.date));
+  }
+  document.getElementById('cellMenu').style.display='none';
+  renderSched(schedIdx,y,m);
+}
+document.addEventListener('click',()=>{document.getElementById('cellMenu').style.display='none';});
+
+// ── EXCEL EXPORT ─────────────────────────────────────────────────
+function exportXL(y,m,onlyIdx){
+  const wb=XLSX.utils.book_new();const n=dim(y,m);
+  const XC={
+    dzien:{bg:'FFD1FAE5',fg:'FF065F46'},noc:{bg:'FFFEF3C7',fg:'FF92400E'},
+    h24:{bg:'FFFEE2E2',fg:'FF991B1B'},biuro:{bg:'FFCCFBF1',fg:'FF134E4A'},
+    vacWD:{bg:'FFEDE9FE',fg:'FF5B21B6'},vacWE:{bg:'FFDBEAFE',fg:'FF1E40AF'},
+    unavail:{bg:'FFFFF7ED',fg:'FFC2410C'},
+    hdr:{bg:'FF1E1B4B',fg:'FFFFFFFF'},hdrWE:{bg:'FF3730A3',fg:'FFFFFFFF'},
+  };
+  function cell(v,bg,fg,bold=false,center=false,sz=10){
+    return{v,s:{fill:{fgColor:{rgb:bg}},font:{color:{rgb:fg},bold,sz},
+      alignment:{horizontal:center?'center':'left',vertical:'center'},
+      border:{top:{style:'thin',color:{rgb:'FFD1D5DB'}},bottom:{style:'thin',color:{rgb:'FFD1D5DB'}},left:{style:'thin',color:{rgb:'FFD1D5DB'}},right:{style:'thin',color:{rgb:'FFD1D5DB'}}}}};
+  }
+  const toExport=onlyIdx!==undefined?[onlyIdx]:[...Array(schedules.length).keys()];
+  toExport.forEach(si=>{
+    const sched=schedules[si];
+    const lkp={};sched.forEach(e=>{lkp[`${e.wid}_${e.date}`]=e.type;});
+    const rows=[];
+    // Title
+    const titleRow=[cell(`GRAFIK ${si+1} — ${MONTHS[m].toUpperCase()} ${y}`,'FF312E81','FFFFFFFF',true,false,12)];
+    for(let d=1;d<n;d++)titleRow.push(cell('','FF312E81','FFFFFFFF'));
+    titleRow.push(cell('','FF312E81','FFFFFFFF'));
+    rows.push(titleRow);
+    // Header
+    const hRow=[cell('PRACOWNIK',XC.hdr.bg,XC.hdr.fg,true,false,9)];
+    for(let d=1;d<=n;d++){
+      const wd=dow(y,m,d);const we=wd===0||wd===6;
+      hRow.push(cell(`${d}\n${DNS[wd]}`,we?XC.hdrWE.bg:XC.hdr.bg,XC.hdr.fg,true,true,8));
+    }
+    hRow.push(cell('SUMA',XC.hdr.bg,XC.hdr.fg,true,true,9));
+    rows.push(hRow);
+    // Worker rows
+    workers.forEach((w,wi)=>{
+      const rowBg=wi%2?'FFFFFFFF':'FFF8FAFC';
+      const row=[cell(w.name+(w.office2?' 🏢':''),rowBg,'FF1E293B',true,false,10)];
+      let total=0;
+      for(let d=1;d<=n;d++){
+        const date=dstr(y,m,d);const wd=dow(y,m,d);
+        const iswe=wd===0||wd===6;const iswd=wd>=1&&wd<=5;
+        const r=w.days[date];const type=lkp[`${w.id}_${date}`];
+        let lbl='',xc={bg:iswe?'FFEEF2FF':'FFFFFFFF',fg:iswe?'FF6366F1':'FF94A3B8'};
+        if(r==='vac'){
+          if(iswe){lbl='U';xc=XC.vacWE;}else{lbl='U+8h';xc=XC.vacWD;total+=8;}
+        } else if(r==='off'){lbl='—';xc=XC.unavail;}
+        else if(type==='dzien'){
+          if(iswd&&w.office2){lbl='B';xc=XC.biuro;total+=12;}
+          else{lbl='D';xc=XC.dzien;total+=12;}
+        } else if(type==='noc'){lbl='N';xc=XC.noc;total+=12;}
+        else if(type==='24h'){lbl='24h';xc=XC.h24;total+=24;}
+        else{lbl=r==='no-d'?'·N':r==='no-n'?'D·':r==='no-both'?'✕':'';xc={bg:iswe?'FFEEF2FF':'FFFFFFFF',fg:'FFD1D5DB'};}
+        row.push(cell(lbl,xc.bg,xc.fg,true,true,9));
+      }
+      row.push(cell(`${total}h`,'FFF0F9FF','FF0369A1',true,true,10));
+      rows.push(row);
+    });
+    const ws={};
+    rows.forEach((row,r)=>row.forEach((c,col)=>{
+      const addr=XLSX.utils.encode_cell({r,c:col});
+      ws[addr]={v:c.v,t:'s',s:c.s};
+    }));
+    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:n+1}}];
+    ws['!cols']=[{wch:16},...Array(n).fill({wch:5.5}),{wch:8}];
+    ws['!rows']=[{hpt:22},{hpt:28},...Array(workers.length).fill({hpt:22})];
+    ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:rows.length-1,c:n+1}});
+    XLSX.utils.book_append_sheet(wb,ws,`Grafik ${si+1}`);
+  });
+  // Legend sheet
+  const legItems=[
+    ['SYMBOL','OPIS','GODZINY'],
+    ['D','Zmiana dzienna (Pn–Pt lub Sb-Nd D+N)','12h'],
+    ['N','Zmiana nocna','12h'],['24h','Zmiana całodobowa (weekend)','24h'],
+    ['B','Biuro — dniówka dla pracownika z min.2/tydz','12h'],
+    ['U+8h','Urlop w dzień roboczy','8h'],['U','Urlop w weekend','0h'],
+    ['—','Niedostępny','0h'],
+    ['·N','Tylko nocka (ograniczenie)','—'],['D·','Tylko dniówka (ograniczenie)','—'],['✕','Oba zablokowane','—'],
+  ];
+  const XCL={'D':{bg:'FFD1FAE5',fg:'FF065F46'},'N':{bg:'FFFEF3C7',fg:'FF92400E'},'24h':{bg:'FFFEE2E2',fg:'FF991B1B'},'B':{bg:'FFCCFBF1',fg:'FF134E4A'},'U+8h':{bg:'FFEDE9FE',fg:'FF5B21B6'},'U':{bg:'FFDBEAFE',fg:'FF1E40AF'},'—':{bg:'FFF1F5F9',fg:'FF64748B'}};
+  const lws={};
+  legItems.forEach((row,r)=>row.forEach((v,c)=>{
+    const addr=XLSX.utils.encode_cell({r,c});
+    const isHdr=r===0;const xc=!isHdr&&c===0&&XCL[v]?XCL[v]:{bg:isHdr?'FF1E1B4B':r%2?'FFFAFAFA':'FFFFFFFF',fg:isHdr?'FFFFFFFF':'FF334155'};
+    lws[addr]={v,t:'s',s:{fill:{fgColor:{rgb:xc.bg}},font:{color:{rgb:xc.fg},bold:isHdr||c===0,sz:isHdr?10:9},alignment:{horizontal:'left',vertical:'center'},border:{top:{style:'thin',color:{rgb:'FFD1D5DB'}},bottom:{style:'thin',color:{rgb:'FFD1D5DB'}},left:{style:'thin',color:{rgb:'FFD1D5DB'}},right:{style:'thin',color:{rgb:'FFD1D5DB'}}}}};
+  }));
+  lws['!cols']=[{wch:8},{wch:44},{wch:10}];
+  lws['!rows']=[{hpt:24},...Array(legItems.length-1).fill({hpt:20})];
+  lws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:legItems.length-1,c:2}});
+  XLSX.utils.book_append_sheet(wb,lws,'Legenda');
+  XLSX.writeFile(wb,`grafik_${MONTHS[m].toLowerCase()}_${y}.xlsx`);
+  toast('✓ Pobrano Excel');
+}
+
+// ── INIT ──────────────────────────────────────────────────────────
+function init(){
+  const now=new Date();
+  // Domyślnie następny miesiąc
+  const next=new Date(now.getFullYear(),now.getMonth()+1,1);
+  document.getElementById('selM').value=next.getMonth()+1;
+  document.getElementById('selY').value=next.getFullYear();
+  const saved=localStorage.getItem('sm_theme')||'light';
+  document.documentElement.dataset.theme=saved;
+  document.getElementById('thBtn').textContent=saved==='dark'?'☀️':'🌙';
+  ['Anna','Bartosz','Celina','Dawid'].forEach(n=>addW(n));
+  buildWeModes();renderWEGrid();
+}
+init();
+</script>
+</body>
+</html>
