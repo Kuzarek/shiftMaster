@@ -33,4 +33,4 @@ Jeden plik HTML — zero instalacji, zero serwera, działa w przeglądarce.
 
 Pobierz `grafik.html` i otwórz w przeglądarce. Nie wymaga internetu po załadowaniu.
 
-Albo otwórz bezpośrednio: **[Demo →](https://twoj-link.netlify.app)**
+Albo otwórz bezpośrednio: **[Demo →](https://kuzarek.github.io/shiftMaster/)**
