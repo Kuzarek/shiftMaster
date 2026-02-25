@@ -486,8 +486,10 @@ td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
     <div>
       <div class="sec">Generator</div>
       <div style="display:flex;flex-direction:column;gap:8px">
-        <label class="chkr"><input type="checkbox" id="chkN" checked><span class="chkl">Max 3 nocki z rzędu</span></label>
-        <label class="chkr"><input type="checkbox" id="chkD" checked><span class="chkl">Max 3 dniówki z rzędu</span></label>
+        <label class="chkr"><input type="checkbox" id="chkN" checked><span class="chkl">Max nocek z rzędu</span></label>
+        <input type="number" id="maxNVal" value="3" min="1" max="7" style="width:50px;margin-left:24px;margin-top:-4px">
+        <label class="chkr"><input type="checkbox" id="chkD" checked><span class="chkl">Max dniówek z rzędu</span></label>
+        <input type="number" id="maxDVal" value="3" min="1" max="7" style="width:50px;margin-left:24px;margin-top:-4px">
         <div><label>Liczba grafików</label>
           <select id="selC"><option value="1" selected>1</option><option value="3">3</option><option value="5">5</option><option value="10">10</option></select>
         </div>
@@ -855,17 +857,23 @@ function canAssign(w,shift,sched,cfg){
     if(type==='24h'&&ne.type==='24h')return false;
   }
   if(cfg.maxN&&type==='noc'){
+    const maxNVal=cfg.maxNVal||3;
     let c=0,ch=prev;
-    for(let i=0;i<3;i++){const e=sched.find(x=>x.wid===wid&&x.date===ch);if(e&&e.type==='noc'){c++;ch=addD(ch,-1);}else break;}
-    if(c>=3)return false;
+    for(let i=0;i<maxNVal;i++){const e=sched.find(x=>x.wid===wid&&x.date===ch);if(e&&e.type==='noc'){c++;ch=addD(ch,-1);}else break;}
+    if(c>=maxNVal)return false;
   }
   if(cfg.maxD&&type==='dzien'){
+    const maxDVal=cfg.maxDVal||3;
     let c=0,ch=prev;
-    for(let i=0;i<3;i++){const e=sched.find(x=>x.wid===wid&&x.date===ch);if(e&&e.type==='dzien'){c++;ch=addD(ch,-1);}else break;}
-    if(c>=3)return false;
+    for(let i=0;i<maxDVal;i++){const e=sched.find(x=>x.wid===wid&&x.date===ch);if(e&&e.type==='dzien'){c++;ch=addD(ch,-1);}else break;}
+    if(c>=maxDVal)return false;
   }
 
   // ── KWOTY – twarde limity ──────────────────────────────────────
+  // Główny limit: łączne godziny pracownika nie mogą przekroczyć target + tol
+  const myTotalH=sched.filter(e=>e.wid===wid).reduce((s,e)=>s+e.hours,0);
+  if(myTotalH+shift.hours>q.target+cfg.tol)return false;
+
   const wd=new Date(date).getDay();const isWday=wd>=1&&wd<=5;
 
   if(type==='dzien'&&isWday){
@@ -906,6 +914,7 @@ function wScore(w,shift,sched,cfg){
 
 function backtrack(shifts,idx,sched,results,limit,cfg){
   if(results.length>=limit)return;
+  if(cfg._deadline&&Date.now()>cfg._deadline)return;
   if(idx===shifts.length){results.push([...sched]);return;}
   const shift=shifts[idx];
   const sorted=[...workers].sort((a,b)=>wScore(a,shift,sched,cfg)-wScore(b,shift,sched,cfg));
@@ -915,6 +924,7 @@ function backtrack(shifts,idx,sched,results,limit,cfg){
       backtrack(shifts,idx+1,sched,results,limit,cfg);
       sched.pop();
       if(results.length>=limit)return;
+      if(cfg._deadline&&Date.now()>cfg._deadline)return;
     }
   }
 }
@@ -931,9 +941,13 @@ function runGen(){
       const {y,m}=ym();
       const tol=+document.getElementById('selT').value;
       const count=+document.getElementById('selC').value;
+      const maxNVal=+document.getElementById('maxNVal').value||3;
+      const maxDVal=+document.getElementById('maxDVal').value||3;
       const baseCfg={
         maxN:document.getElementById('chkN').checked,
+        maxNVal,
         maxD:document.getElementById('chkD').checked,
+        maxDVal,
         count,tol,
       };
 
@@ -944,8 +958,8 @@ function runGen(){
 
       const origWeModes={...weModes};
 
-      // Próba 1: oryginalne ustawienia
-      let cfg1={...baseCfg,quotas:buildQuotas(y,m)};
+      // Próba 1: oryginalne ustawienia (timeout 10s)
+      let cfg1={...baseCfg,quotas:buildQuotas(y,m),_deadline:Date.now()+5000};
       const results1=[];
       backtrack(genShifts(y,m),0,[],results1,count,cfg1);
 
@@ -960,8 +974,8 @@ function runGen(){
         weModes=splitModes;
 
         const need=count-results1.length;
-        // Generuj więcej żeby wyrównać – do count*2 prób
-        let cfg2={...baseCfg,count:need+count,quotas:buildQuotas(y,m)};
+        // Generuj więcej żeby wyrównać – do count*2 prób (timeout 10s)
+        let cfg2={...baseCfg,count:need+count,quotas:buildQuotas(y,m),_deadline:Date.now()+5000};
         const results2=[];
         backtrack(genShifts(y,m),0,[],results2,cfg2.count,cfg2);
 
@@ -976,7 +990,7 @@ function runGen(){
 
       schedules=finalResults;
       if(!schedules.length){
-        document.getElementById('mainInner').innerHTML='<div class="alert">⚠ Nie udało się wygenerować grafiku. Zwiększ tolerancję godzin lub zmniejsz ograniczenia.</div>';
+        document.getElementById('mainInner').innerHTML='<div class="alert">⚠ Nie udało się wygenerować grafiku w wyznaczonym czasie. Zwiększ odchylenie godzin lub zmniejsz ograniczenia.</div>';
       } else {
         renderAll(y,m,fallbackUsed,results1.length);
         autoSave();
@@ -1578,6 +1592,8 @@ async function doCreateTeam(){
   if(!member){err.textContent='Podaj swoje imię';return;}
   err.textContent='Tworzenie...';
   try{
+    const existing=await db.collection('teams').where('name','==',name).limit(1).get();
+    if(!existing.empty){err.textContent='Zespół o tej nazwie już istnieje';return;}
     const tid=genTeamId(), pwh=await hashPw(pw);
     const now=new Date();
     const nextM=new Date(now.getFullYear(),now.getMonth()+1,1);
