@@ -51,7 +51,7 @@ function saveW(){
   if(teamSession&&db){saveToFirestore();return;}
   try{
     localStorage.setItem(LS,JSON.stringify({
-      workers:workers.map(w=>({id:w.id,name:w.name,color:w.color,days:w.days||{},minDays2:!!w.minDays2})),
+      workers:workers.map(w=>({id:w.id,name:w.name,color:w.color,days:w.days||{},minDays:w.minDays||0})),
       ctr:wCtr
     }));
     toast('✓ Zapisano '+workers.length+' pracowników');
@@ -62,7 +62,7 @@ function loadW(){
   try{
     const raw=localStorage.getItem(LS);if(!raw){toast('Brak danych');return;}
     const d=JSON.parse(raw);
-    workers=d.workers.map(w=>({...w,_open:false,days:w.days||{}}));
+    workers=d.workers.map(w=>({...w,_open:false,days:w.days||{},minDays:w.minDays||(w.minDays2?2:0)}));
     wCtr=d.ctr||workers.length;
     workers.forEach(w=>{cmode[w.id]='vac';});
     renderWorkers();toast('✓ Wczytano '+workers.length+' pracowników');
@@ -137,7 +137,7 @@ function renderWEGrid(){
 // ── WORKERS ────────────────────────────────────────────────────────
 function addW(name){
   const id=wCtr++;
-  workers.push({id,name:name||`Pracownik ${id+1}`,color:COLORS[workers.length%COLORS.length],_open:false,days:{},minDays2:false});
+  workers.push({id,name:name||`Pracownik ${id+1}`,color:COLORS[workers.length%COLORS.length],_open:false,days:{},minDays:0});
   cmode[id]='vac';renderWorkers();autoSave();
 }
 function delW(id){workers=workers.filter(w=>w.id!==id);renderWorkers();autoSave();}
@@ -153,8 +153,10 @@ function buildWCard(w,y,m){
   const cnt=Object.keys(w.days).length;
   const badges=cnt?`<span class="wbadge bc">${cnt}×</span>`:'';
   const body=w._open?`<div class="wbody">${buildWOpts(w)}${buildCal(w,y,m)}</div>`:'';
+  const initials=w.name.trim().split(/\s+/).map(p=>p[0]||'').join('').slice(0,2).toUpperCase()||'?';
+  const hex=w.color;
   return `<div class="whead">
-    <div class="wdot" style="background:${w.color}"></div>
+    <div class="wavatar" style="background:${hex}22;border:1.5px solid ${hex}88;color:${hex}">${initials}</div>
     <input class="wname" value="${w.name}" oninput="workers.find(x=>x.id===${w.id}).name=this.value;autoSave()" placeholder="Imię">
     <div class="wbadges">${badges}</div>
     <button class="warr${w._open?' op':''}" onclick="togW(${w.id})">▾</button>
@@ -162,10 +164,20 @@ function buildWCard(w,y,m){
   </div>${body}`;
 }
 function buildWOpts(w){
+  const v=w.minDays||0;
   return `<div class="wopts">
-    <label class="chkr"><input type="checkbox" ${w.minDays2?'checked':''} onchange="workers.find(x=>x.id===${w.id}).minDays2=this.checked;autoSave()">
-    <div><span class="chkl">Min. 2 dniówki Pn–Pt / tydzień</span>
-    <div class="chkn">Algorytm priorytetowo przydzieli min. 2 dniówki tygodniowo</div></div></label>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="chkl" style="flex:1">Min. dniówek Pn–Pt / tydzień</span>
+      <select style="width:50px" onchange="workers.find(x=>x.id===${w.id}).minDays=+this.value;autoSave()">
+        <option value="0"${v===0?' selected':''}>—</option>
+        <option value="1"${v===1?' selected':''}>1</option>
+        <option value="2"${v===2?' selected':''}>2</option>
+        <option value="3"${v===3?' selected':''}>3</option>
+        <option value="4"${v===4?' selected':''}>4</option>
+        <option value="5"${v===5?' selected':''}>5</option>
+      </select>
+    </div>
+    <div class="chkn">Algorytm priorytetowo przydzieli min. tyle dniówek tygodniowo (0 = wył.)</div>
   </div>`;
 }
 
@@ -248,13 +260,20 @@ function genShifts(y,m,shiftMode,minPerDay){
   for(let d=1;d<=n;d++){
     const date=dstr(y,m,d);const wd=dow(y,m,d);
     if(is8){
-      if(wd>=1&&wd<=5){
-        for(let s=0;s<mpd;s++)shifts.push({date,type:'dzien',hours:8});
+      const we8=document.getElementById('chk8hWe')&&document.getElementById('chk8hWe').checked;
+      if(wd>=1&&wd<=5||we8){
+        for(let s=0;s<mpd;s++)shifts.push({date,type:'dzien',hours:8,slot:s+1});
       }
     } else {
       if(wd>=1&&wd<=5){
-        shifts.push({date,type:'dzien',hours:12});
-        shifts.push({date,type:'noc',hours:12});
+        // Awaryjne 24h: jeśli tylko 1 pracownik dostępny w dniu roboczym
+        const avail=workers.filter(w=>{const r=w.days[date];return r!=='vac'&&r!=='off';});
+        if(avail.length<=1){
+          shifts.push({date,type:'24h',hours:24});
+        } else {
+          shifts.push({date,type:'dzien',hours:12});
+          shifts.push({date,type:'noc',hours:12});
+        }
       } else {
         const satS=wd===6?date:dstr(y,m,d-1);
         const mo=weModes[satS]||'24h';
@@ -266,7 +285,7 @@ function genShifts(y,m,shiftMode,minPerDay){
       }
     }
   }
-  shifts.sort((a,b)=>a.date.localeCompare(b.date)||(a.type==='dzien'?-1:b.type==='dzien'?1:0));
+  shifts.sort((a,b)=>a.date.localeCompare(b.date)||(a.slot||0)-(b.slot||0)||(a.type==='dzien'?-1:b.type==='dzien'?1:0));
   return shifts;
 }
 
@@ -278,10 +297,12 @@ function buildQuotas(y,m,shiftMode,minPerDay){
   const is8=shiftMode==='8h';
   const mpd=is8?(minPerDay||1):1;
   const n=dim(y,m);
+  const we8=is8&&document.getElementById('chk8hWe')&&document.getElementById('chk8hWe').checked;
   let wdayDzien=0,wdayNoc=0,weH=0;
   for(let d=1;d<=n;d++){
     const wd=dow(y,m,d);
     if(wd>=1&&wd<=5){wdayDzien++;if(!is8)wdayNoc++;}
+    else if(we8){wdayDzien++;}
     else if(!is8){
       const satS=wd===6?dstr(y,m,d):dstr(y,m,d-1);
       const mo=weModes[satS]||'24h';
@@ -350,24 +371,36 @@ function canAssign(w,shift,sched,cfg){
     if(c>=maxDVal)return false;
   }
 
+  // Max 2 niedziele pod rząd (8h z weekendami)
+  if(cfg.maxSun&&new Date(date).getDay()===0){
+    let c=0;
+    for(let w7=7;w7<=14;w7+=7){
+      const prevSun=addD(date,-w7);
+      if(sched.some(e=>e.wid===wid&&e.date===prevSun))c++;else break;
+    }
+    if(c>=2)return false;
+  }
+
   // ── KWOTY – twarde limity ──────────────────────────────────────
   // Główny limit: łączne godziny pracownika nie mogą przekroczyć target + tol
   const myTotalH=sched.filter(e=>e.wid===wid).reduce((s,e)=>s+e.hours,0);
   if(myTotalH+shift.hours>q.target+cfg.tol)return false;
 
   const wd=new Date(date).getDay();const isWday=wd>=1&&wd<=5;
+  const is8all=!!shift.slot; // 8h mode (has slot) — all dzien treated equally
 
-  if(type==='dzien'&&isWday){
-    // Twardy limit dniówek weekday wg kwoty
-    const myDzien=sched.filter(e=>e.wid===wid&&e.type==='dzien'&&
-      (()=>{const w2=new Date(e.date).getDay();return w2>=1&&w2<=5;})()).length;
-    if(myDzien>=q.maxDzienWday+cfg.tol/12)return false;
+  if(type==='dzien'&&(isWday||is8all)){
+    // Twardy limit dniówek wg kwoty (w 8h liczymy wszystkie dzien, nie tylko weekday)
+    const myDzien=is8all
+      ? sched.filter(e=>e.wid===wid&&e.type==='dzien').length
+      : sched.filter(e=>e.wid===wid&&e.type==='dzien'&&(()=>{const w2=new Date(e.date).getDay();return w2>=1&&w2<=5;})()).length;
+    if(myDzien>=q.maxDzienWday+cfg.tol/(shift.hours||12))return false;
   }
 
-  if(type==='noc'||type==='24h'||(type==='dzien'&&!isWday)){
-    // Limit godzin nocek+weekendów
+  if(!is8all&&(type==='noc'||type==='24h'||(type==='dzien'&&!isWday))){
+    // Limit godzin nocek+weekendów (nie dotyczy trybu 8h)
     const myNocWeH=sched.filter(e=>e.wid===wid&&(
-      e.type==='noc'||e.type==='24h'||(e.type==='dzien'&&(()=>{const w2=new Date(e.date).getDay();return w2===0||w2===6;})())
+      e.type==='noc'||e.type==='24h'||(e.type==='dzien'&&!e.slot&&(()=>{const w2=new Date(e.date).getDay();return w2===0||w2===6;})())
     )).reduce((s,e)=>s+e.hours,0);
     if(myNocWeH+shift.hours>q.maxNocWeH+cfg.tol)return false;
   }
@@ -380,13 +413,31 @@ function wScore(w,shift,sched,cfg){
   const myH=sched.filter(e=>e.wid===wid).reduce((s,e)=>s+e.hours,0);
   let score=myH/q.target; // 0..1, niższe = bardziej potrzebuje
 
-  // minDays2: silny priorytet dla dniówek Pn-Pt gdy pracownik nie ma jeszcze 2 w tygodniu
-  if(w.minDays2&&shift.type==='dzien'){
+  // minDays: priorytet dla dniówek Pn-Pt gdy pracownik nie ma jeszcze wymaganej ilości w tygodniu
+  if(w.minDays&&shift.type==='dzien'){
     const wd=new Date(shift.date).getDay();
     if(wd>=1&&wd<=5){
       const cnt=weekOfficeCnt(wid,shift.date,sched);
-      if(cnt<2)score-=1.5;
+      if(cnt<w.minDays)score-=1.5;
     }
+  }
+
+  // 8h: preferuj zachowanie 12h odpoczynku (slot następnego dnia >= slot poprzedniego)
+  // Kara proporcjonalna do "skoku w dół" — III→I (skok 2) gorszy niż II→I (skok 1)
+  if(shift.slot){
+    const prev=addD(shift.date,-1);
+    const pe=sched.find(e=>e.wid===wid&&e.date===prev);
+    if(pe&&pe.slot&&shift.slot<pe.slot){
+      const gap=pe.slot-shift.slot; // 1 lub 2
+      score+=gap*50; // bardzo wysoka kara — prawie nigdy nie zostanie wybrany
+    }
+  }
+
+  // 8h: bonus za kontynuację tego samego lub wyższego slotu (stabilność grafiku)
+  if(shift.slot){
+    const prev=addD(shift.date,-1);
+    const pe=sched.find(e=>e.wid===wid&&e.date===prev);
+    if(pe&&pe.slot&&shift.slot===pe.slot)score-=0.3; // bonus za ten sam slot
   }
 
   score+=(Math.random()-.5)*0.15;
@@ -401,7 +452,7 @@ function backtrack(shifts,idx,sched,results,limit,cfg){
   const sorted=[...workers].sort((a,b)=>wScore(a,shift,sched,cfg)-wScore(b,shift,sched,cfg));
   for(const w of sorted){
     if(canAssign(w,shift,sched,cfg)){
-      sched.push({wid:w.id,date:shift.date,type:shift.type,hours:shift.hours});
+      sched.push({wid:w.id,date:shift.date,type:shift.type,hours:shift.hours,slot:shift.slot});
       backtrack(shifts,idx+1,sched,results,limit,cfg);
       sched.pop();
       if(results.length>=limit)return;
@@ -431,13 +482,15 @@ function runGen(){
         maxNVal,
         maxD:document.getElementById('chkD').checked,
         maxDVal,
+        maxSun:!!(document.getElementById('chkMaxSun')&&document.getElementById('chkMaxSun').checked),
         count,tol,
       };
 
       // W trybie 8h nie ma nocek ani weekendów — bez strategii fallback
       const minPerDay=shiftMode==='8h'?(+document.getElementById('minPerDay').value||1):1;
       if(shiftMode==='8h'){
-        let cfg1={...baseCfg,quotas:buildQuotas(y,m,shiftMode,minPerDay),_deadline:Date.now()+5000};
+        const deadline8=5000*Math.max(1,minPerDay); // więcej zmian = więcej czasu
+        let cfg1={...baseCfg,quotas:buildQuotas(y,m,shiftMode,minPerDay),_deadline:Date.now()+deadline8};
         const results1=[];
         backtrack(genShifts(y,m,shiftMode,minPerDay),0,[],results1,count,cfg1);
         schedules=results1;
@@ -523,6 +576,7 @@ function renderAll(y,m,fallbackUsed=false,firstCount=schedules.length){
   schedules.forEach((_,i)=>renderSched(i,y,m));
 }
 
+
 function renderSched(idx,y,m){
   const sched=schedules[idx];const n=dim(y,m);
   const hrs={};workers.forEach(w=>hrs[w.id]={d:0,n:0,t24:0,vac:vacH(w,y,m)});
@@ -536,7 +590,8 @@ function renderSched(idx,y,m){
   const maxH=Math.max(...tots.map(t=>t.total),1);
   const minH=Math.min(...tots.map(t=>t.total));
   const avgH=Math.round(tots.reduce((s,t)=>s+t.total,0)/tots.length);
-  const lkp={};sched.forEach(e=>{lkp[`${e.wid}_${e.date}`]=e.type;});
+  const lkp={};sched.forEach(e=>{lkp[`${e.wid}_${e.date}`]=e;});
+  const ROMAN=['I','II','III'];
 
   const meta=window._schedMeta||{};
   const isSplit=meta.fallbackUsed&&idx>=meta.firstCount;
@@ -579,16 +634,15 @@ function renderSched(idx,y,m){
     for(let d=1;d<=n;d++){
       const date=dstr(y,m,d);const wd=dow(y,m,d);
       const we=wd===0||wd===6;const iswd=wd>=1&&wd<=5;
-      const r=w.days[date];const type=lkp[`${w.id}_${date}`];
+      const r=w.days[date];const ent=lkp[`${w.id}_${date}`];const type=ent?ent.type:undefined;
       let cls=we?'cwe':'';let lbl='';
       if(r==='vac'){
         if(we){cls='cuwe';lbl='U';}else{cls='cuwd';lbl='U';wt+=8;}
       } else if(r==='off'){
         cls='coff';lbl='—';
       } else if(type==='dzien'){
-        const sh=sched.find(e=>e.wid===w.id&&e.date===date);
-        const dh=sh?sh.hours:12;
-        cls='cd';lbl='D';wt+=dh;
+        const dh=ent.hours||12;
+        cls='cd';lbl=ent.slot?ROMAN[ent.slot-1]:'D';wt+=dh;
       } else if(type==='noc'){cls='cn';lbl='N';wt+=12;}
       else if(type==='24h'){cls='c24';lbl='24h';wt+=24;}
       else{
@@ -601,16 +655,24 @@ function renderSched(idx,y,m){
   });
   tbody+='</tbody>';
 
-  const leg=`<div class="legrow">
-    <div class="legitem"><div class="legdot" style="background:var(--green-bg);border:1px solid var(--green);color:var(--green)">D</div>Dzień</div>
+  const is8mode=document.getElementById('selShiftMode').value==='8h';
+  const mpd8=is8mode?(+document.getElementById('minPerDay').value||1):1;
+  let legShifts='';
+  if(is8mode){
+    for(let s=1;s<=mpd8;s++) legShifts+=`<div class="legitem"><div class="legdot" style="background:var(--green-bg);border:1px solid var(--green);color:var(--green)">${ROMAN[s-1]}</div>Zmiana ${s}</div>`;
+  } else {
+    legShifts=`<div class="legitem"><div class="legdot" style="background:var(--green-bg);border:1px solid var(--green);color:var(--green)">D</div>Dzień</div>
     <div class="legitem"><div class="legdot" style="background:var(--yellow-bg);border:1px solid var(--yellow);color:var(--yellow)">N</div>Noc</div>
-    <div class="legitem"><div class="legdot" style="background:#d6eef8;border:1px solid #1a7fa8;color:#1a7fa8;font-size:7px">24h</div>Weekend</div>
+    <div class="legitem"><div class="legdot" style="background:#d6eef8;border:1px solid #1a7fa8;color:#1a7fa8;font-size:7px">24h</div>Weekend</div>`;
+  }
+  const leg=`<div class="legrow">
+    ${legShifts}
     <div class="legitem"><div class="legdot" style="background:var(--purple-bg);border:1px solid var(--purple);color:var(--purple)">U</div>Urlop Pn-Pt</div>
     <div class="legitem"><div class="legdot" style="background:var(--blue-bg);border:1px solid var(--blue);color:var(--blue)">U</div>Urlop Sb-Nd</div>
     <div class="legitem"><div class="legdot" style="background:var(--gray-bg);border:1px solid var(--gray);color:var(--gray)">—</div>Niedostępny</div>
   </div>`;
 
-  document.getElementById('sb'+idx).innerHTML=`<div class="sched-block">${hdr}${bars}<div class="twrap"><table>${thead}${tbody}</table></div>${leg}</div>`;
+  document.getElementById('sb'+idx).innerHTML=`<div class="sched-block" style="animation-delay:${idx*0.07}s">${hdr}${bars}<div class="twrap"><table>${thead}${tbody}</table></div>${leg}</div>`;
 }
 
 // ── CELL CONTEXT MENU (manual edit) ──────────────────────────────
@@ -632,13 +694,31 @@ function openCellMenu(evt,schedIdx,wid,date){
   const wd=new Date(date).getDay();const iswd=wd>=1&&wd<=5;
   const w=workers.find(x=>x.id===wid);
   const is8=document.getElementById('selShiftMode').value==='8h';
-  const types=is8?CELL_TYPES.filter(ct=>ct.type!=='noc'&&ct.type!=='24h'):CELL_TYPES;
-  menu.innerHTML=types.map(ct=>{
-    const lbl=is8&&ct.type==='dzien'?'D — Dniówka 8h':ct.lbl;
-    return `<button class="cmitem" onclick="applyCellType('${ct.type}')">
-      <div class="dot" style="background:${ct.bg};border:1px solid ${ct.fg}"></div>
-      ${lbl}
-    </button>`;}).join('');
+  const mpd=is8?(+document.getElementById('minPerDay').value||1):1;
+  let items='';
+  if(is8){
+    const ROMAN=['I','II','III'];
+    for(let s=1;s<=mpd;s++){
+      items+=`<button class="cmitem" onclick="applyCellType('dzien',${s})">
+        <div class="dot" style="background:var(--green-bg);border:1px solid var(--green)"></div>
+        ${ROMAN[s-1]} — Zmiana ${s} (8h)
+      </button>`;
+    }
+    CELL_TYPES.filter(ct=>ct.type!=='dzien'&&ct.type!=='noc'&&ct.type!=='24h').forEach(ct=>{
+      items+=`<button class="cmitem" onclick="applyCellType('${ct.type}')">
+        <div class="dot" style="background:${ct.bg};border:1px solid ${ct.fg}"></div>
+        ${ct.lbl}
+      </button>`;
+    });
+  } else {
+    CELL_TYPES.forEach(ct=>{
+      items+=`<button class="cmitem" onclick="applyCellType('${ct.type}')">
+        <div class="dot" style="background:${ct.bg};border:1px solid ${ct.fg}"></div>
+        ${ct.lbl}
+      </button>`;
+    });
+  }
+  menu.innerHTML=items;
   // position
   const r=evt.target.getBoundingClientRect();
   let left=r.left,top=r.bottom+2;
@@ -646,7 +726,7 @@ function openCellMenu(evt,schedIdx,wid,date){
   if(top+200>window.innerHeight)top=r.top-2-200;
   menu.style.left=left+'px';menu.style.top=top+'px';menu.style.display='flex';
 }
-function applyCellType(type){
+function applyCellType(type,slot){
   if(!_menuCtx)return;
   const {schedIdx,wid,date}=_menuCtx;
   const sched=schedules[schedIdx];
@@ -655,19 +735,18 @@ function applyCellType(type){
   const wd=new Date(date).getDay();const iswd=wd>=1&&wd<=5;
 
   if(type==='none'||type==='off'||type==='vac'){
-    // Remove shift from schedule
     schedules[schedIdx]=sched.filter(e=>!(e.wid===wid&&e.date===date));
-    // Set day marker if vac/off
     if(type==='vac')w.days[date]='vac';
     else if(type==='off')w.days[date]='off';
     else if(w.days[date]==='vac'||w.days[date]==='off')delete w.days[date];
   } else {
-    // Remove existing entry for this worker+date
     schedules[schedIdx]=sched.filter(e=>!(e.wid===wid&&e.date===date));
-    // Also clear any vac/off marker
     if(w.days[date]==='vac'||w.days[date]==='off')delete w.days[date];
-    const hrs=type==='24h'?24:12;
-    schedules[schedIdx].push({wid,date,type,hours:hrs});
+    const is8=document.getElementById('selShiftMode').value==='8h';
+    const hrs=type==='24h'?24:(is8?8:12);
+    const entry={wid,date,type,hours:hrs};
+    if(slot)entry.slot=slot;
+    schedules[schedIdx].push(entry);
     schedules[schedIdx].sort((a,b)=>a.date.localeCompare(b.date));
   }
   document.getElementById('cellMenu').style.display='none';
@@ -763,7 +842,8 @@ function exportXL(y,m,onlyIdx){
 
   toExport.forEach(si=>{
     const sched=schedules[si];
-    const lkp={};sched.forEach(e=>{lkp[`${e.wid}_${e.date}`]=e.type;});
+    const lkp={};sched.forEach(e=>{lkp[`${e.wid}_${e.date}`]=e;});
+    const ROMAN=['I','II','III'];
     const totalCols=3+n+1; // Lp + Imię + Nazwisko + days + SUMA
 
     html+=`<table>`;
@@ -805,7 +885,7 @@ function exportXL(y,m,onlyIdx){
       for(let d=1;d<=n;d++){
         const date=dstr(y,m,d);const wd=dow(y,m,d);
         const iswe=wd===0||wd===6;const iswd=!iswe;
-        const r=w.days[date];const type=lkp[`${w.id}_${date}`];
+        const r=w.days[date];const ent=lkp[`${w.id}_${date}`];const type=ent?ent.type:undefined;
         let lbl='',cBg=iswe?C.emptyWE.bg:C.empty.bg,cFg=iswe?C.emptyWE.fg:C.empty.fg;
 
         if(r==='vac'){
@@ -814,7 +894,7 @@ function exportXL(y,m,onlyIdx){
         } else if(r==='off'){
           lbl='WN';cBg=C.off.bg;cFg=C.off.fg;
         } else if(type==='dzien'){
-          lbl='D';cBg=C.dzien.bg;cFg=C.dzien.fg;total+=12;
+          lbl=ent.slot?ROMAN[ent.slot-1]:'D';cBg=C.dzien.bg;cFg=C.dzien.fg;total+=(ent.hours||12);
         } else if(type==='noc'){
           lbl='N';cBg=C.noc.bg;cFg=C.noc.fg;total+=12;
         } else if(type==='24h'){
@@ -857,7 +937,7 @@ function exportXL(y,m,onlyIdx){
         const date=dstr(y,m,d);
         let cnt=0;
         workers.forEach(w=>{
-          const type=lkp[`${w.id}_${date}`];
+          const type=(lkp[`${w.id}_${date}`]||{}).type;
           if(type==='dzien')cnt++;
         });
         sumD+=cnt;
@@ -877,7 +957,7 @@ function exportXL(y,m,onlyIdx){
         const date=dstr(y,m,d);
         let cnt=0;
         workers.forEach(w=>{
-          const type=lkp[`${w.id}_${date}`];
+          const type=(lkp[`${w.id}_${date}`]||{}).type;
           if(type==='noc')cnt++;
         });
         sumN+=cnt;
@@ -897,7 +977,7 @@ function exportXL(y,m,onlyIdx){
         const date=dstr(y,m,d);
         let cnt=0;
         workers.forEach(w=>{
-          const type=lkp[`${w.id}_${date}`];
+          const type=(lkp[`${w.id}_${date}`]||{}).type;
           if(type==='dzien'||type==='noc'||type==='24h')cnt++;
         });
         sumT+=cnt;
@@ -917,7 +997,7 @@ function exportXL(y,m,onlyIdx){
         const iswe=wd===0||wd===6;
         let hasD=false,hasN=false,has24=false;
         workers.forEach(w=>{
-          const type=lkp[`${w.id}_${date}`];
+          const type=(lkp[`${w.id}_${date}`]||{}).type;
           if(type==='dzien')hasD=true;
           if(type==='noc')hasN=true;
           if(type==='24h')has24=true;
@@ -978,7 +1058,7 @@ function exportXL(y,m,onlyIdx){
     for(let d=1;d<=n;d++){
       const date=dstr(y,m,d);
       workers.forEach(w=>{
-        const type=lkp[`${w.id}_${date}`];
+        const type=(lkp[`${w.id}_${date}`]||{}).type;
         if(type==='dzien')dTotal++;
         if(type==='noc')nTotal++;
       });
@@ -1028,22 +1108,6 @@ function exportXL(y,m,onlyIdx){
 // ══════════════════════════════════════════════════════════════════
 // ██ FIREBASE BACKEND ██
 // ══════════════════════════════════════════════════════════════════
-
-// ── FIREBASE CONFIG ──────────────────────────────────────────────
-// INSTRUKCJA:
-// 1. Wejdź na https://console.firebase.google.com
-// 2. Utwórz nowy projekt (wyłącz Google Analytics)
-// 3. W panelu projektu → „Kompilacja" → „Firestore Database" → „Utwórz bazę danych" → tryb testowy
-// 4. W panelu projektu → ⚙ → „Ustawienia projektu" → „Twoje aplikacje" → ikona </> (Web)
-// 5. Zarejestruj aplikację i skopiuj wartości poniżej:
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyARwVG94FoE4QEMUV3PAj3-1mYsB_0_a1E",
-  authDomain: "shiftmaster-f085b.firebaseapp.com",
-  projectId: "shiftmaster-f085b",
-  storageBucket: "shiftmaster-f085b.firebasestorage.app",
-  messagingSenderId: "603019176306",
-  appId: "1:603019176306:web:16dfd03258799497f9d5eb"
-};
 
 // ── FIREBASE STATE ───────────────────────────────────────────────
 let db=null, teamSession=null, unsubscribe=null, _skipSnap=false;
@@ -1202,7 +1266,7 @@ function applyTeamData(d){
   _cachedSchedMeta=d.schedMeta||null;
   _cachedHistory=d.scheduleHistory||null;
   if(d.workers){
-    workers=d.workers.map(w=>({...w,_open:false,days:w.days||{}}));
+    workers=d.workers.map(w=>({...w,_open:false,days:w.days||{},minDays:w.minDays||(w.minDays2?2:0)}));
     workers.forEach(w=>{cmode[w.id]=cmode[w.id]||'vac';});
   }
   wCtr=d.wCtr||workers.length;
@@ -1218,6 +1282,10 @@ function applyTeamData(d){
     const mpd=document.getElementById('minPerDay');if(mpd)mpd.value=g.minPerDay||1;
     const selC=document.getElementById('selC');if(selC)selC.value=g.count||1;
     const mpdw=document.getElementById('minPerDayWrap');if(mpdw)mpdw.style.display=(g.shiftMode==='8h')?'':'none';
+    const chk8w=document.getElementById('chk8hWe');if(chk8w)chk8w.checked=!!g.we8h;
+    const chkMs=document.getElementById('chkMaxSun');if(chkMs)chkMs.checked=g.maxSun!==false;
+    const msw=document.getElementById('maxSunWrap');if(msw)msw.style.display=g.we8h?'':'none';
+    const wew=document.getElementById('weWrap8h');if(wew)wew.style.display=(g.shiftMode==='8h')?'':'none';
   }
   const {y:cy,m:cm}=ym();const cmk=cy+'-'+cm;
   const curApproved=d.approvedSchedules&&d.approvedSchedules[cmk]&&!d.approvedSchedules[cmk].revoked;
@@ -1250,7 +1318,7 @@ async function saveToFirestore(){
   try{
     const {y,m}=ym();const mk=y+'-'+m;
     const upd={
-      workers:workers.map(w=>({id:w.id,name:w.name,color:w.color,days:w.days||{},minDays2:!!w.minDays2})),
+      workers:workers.map(w=>({id:w.id,name:w.name,color:w.color,days:w.days||{},minDays:w.minDays||0})),
       wCtr,weModes,settings:{month:m,year:y},
       genSettings:{
         shiftMode:document.getElementById('selShiftMode').value,
@@ -1260,6 +1328,8 @@ async function saveToFirestore(){
         maxDVal:+document.getElementById('maxDVal').value||3,
         tol:+document.getElementById('selT').value,
         minPerDay:+document.getElementById('minPerDay').value||1,
+        we8h:!!(document.getElementById('chk8hWe')&&document.getElementById('chk8hWe').checked),
+        maxSun:!!(document.getElementById('chkMaxSun')&&document.getElementById('chkMaxSun').checked),
         count:+document.getElementById('selC').value
       }
     };
@@ -1335,7 +1405,7 @@ async function approveSchedule(idx){
       data:sched,version:ver,
       approvedBy:teamSession.memberName,
       approvedAt:new Date().toISOString(),
-      workers:workers.map(w=>({id:w.id,name:w.name,color:w.color,days:w.days||{},minDays2:!!w.minDays2})),
+      workers:workers.map(w=>({id:w.id,name:w.name,color:w.color,days:w.days||{},minDays:w.minDays||0})),
       weModes:{...weModes},month:m,year:y
     };
     upd['scheduleHistory.'+mk]=history;
@@ -1487,14 +1557,20 @@ function showApprovedSchedule(mk,which){
     const tots=aWorkers.map(w=>{const h=hrs[w.id];return{w,total:h.d+h.n+h.t24+h.vac,...h};});
     const maxH=Math.max(...tots.map(t=>t.total),1);
     const avgH=Math.round(tots.reduce((s,t)=>s+t.total,0)/tots.length);
-    const lkp={};sched.forEach(e=>{lkp[`${e.wid}_${e.date}`]=e.type;});
+    const lkp={};sched.forEach(e=>{lkp[`${e.wid}_${e.date}`]=e;});
+    const ROMAN=['I','II','III'];
 
     const hdr=`<div class="sched-hdr">${statusBadge}<span class="sched-meta">${MONTHS[am]} ${ay} · śr. ${avgH}h · ${sched.length} zmian · Zatwierdził: ${ap.approvedBy}</span></div>`;
 
     let bars=`<div class="hvis"><div class="sec" style="margin-bottom:3px">Godziny pracowników</div>`;
     tots.forEach(t=>{
       const pct=(t.total/maxH*100).toFixed(1);
-      bars+=`<div class="hrow"><div class="hname" style="color:${t.w.color}">${t.w.name}</div><div class="hbarw"><div class="hbar" style="width:${pct}%;background:${t.w.color}"></div></div><div class="hnum">${t.total}h</div><div class="hbk">D:${t.d} N:${t.n} 24:${t.t24}${t.vac?' U:+'+t.vac:''}</div></div>`;
+      bars+=`<div class="hrow">
+        <div class="hname" style="color:${t.w.color}">${t.w.name}</div>
+        <div class="hbarw"><div class="hbar" style="width:${pct}%;background:${t.w.color}"></div></div>
+        <div class="hnum">${t.total}h</div>
+        <div class="hbk">D:${t.d} N:${t.n} 24:${t.t24}${t.vac?' U:+'+t.vac:''}</div>
+      </div>`;
     });
     bars+='</div>';
 
@@ -1508,11 +1584,11 @@ function showApprovedSchedule(mk,which){
       let wt=0;
       for(let d=1;d<=n;d++){
         const date=dstr(ay,am,d);const wd=dow(ay,am,d);const we=wd===0||wd===6;
-        const r=w.days[date];const type=lkp[`${w.id}_${date}`];
+        const r=w.days[date];const ent=lkp[`${w.id}_${date}`];const type=ent?ent.type:undefined;
         let cls=we?'cwe':'';let lbl='';
         if(r==='vac'){if(we){cls='cuwe';lbl='U';}else{cls='cuwd';lbl='U';wt+=8;}}
         else if(r==='off'){cls='coff';lbl='—';}
-        else if(type==='dzien'){const sh=sched.find(e=>e.wid===w.id&&e.date===date);const dh=sh?sh.hours:12;cls='cd';lbl='D';wt+=dh;}
+        else if(type==='dzien'){const dh=ent.hours||12;cls='cd';lbl=ent.slot?ROMAN[ent.slot-1]:'D';wt+=dh;}
         else if(type==='noc'){cls='cn';lbl='N';wt+=12;}
         else if(type==='24h'){cls='c24';lbl='24h';wt+=24;}
         else{cls='cr'+(we?' cwe':'');}
@@ -1551,7 +1627,7 @@ function exportApprovedXL(mk){
     const ap=doc.data().approvedSchedules?.[mk];
     if(!ap)return;
     const _w=workers,_s=schedules,_we=weModes,_wc=wCtr;
-    workers=ap.workers.map(w=>({...w,_open:false,days:w.days||{}}));
+    workers=ap.workers.map(w=>({...w,_open:false,days:w.days||{},minDays:w.minDays||(w.minDays2?2:0)}));
     weModes=ap.weModes||{};wCtr=Math.max(...workers.map(w=>w.id),0)+1;
     schedules=[ap.data];
     exportXL(ap.year,ap.month,0);

@@ -3,11 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ShiftMaster v6.4 — Generator Grafiku</title>
+<title>ShiftMaster v1.0 — Generator Grafiku</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="js/config.js"></script>
 </head>
 <body>
 <!-- LOGIN OVERLAY -->
@@ -51,7 +52,7 @@
 <div class="tut-overlay" id="tutOverlay" style="display:none"></div>
 <header>
   <div class="logo">⚡</div>
-  <div><h1>Shift<span>Master</span></h1><div class="subtitle">Generator grafiku · v6.4</div></div>
+  <div><h1>Shift<span>Master</span></h1><div class="subtitle">Generator grafiku · v1.0</div></div>
   <div class="hacts">
     <span class="toast" id="toast"></span>
     <button class="thbtn" onclick="togTheme()" id="thBtn">🌙</button>
@@ -126,9 +127,10 @@
           <select id="selC"><option value="1" selected>1</option><option value="3">3</option><option value="5">5</option><option value="10">10</option></select>
         </div>
         <div><label>Tryb zmian</label>
-          <select id="selShiftMode" onchange="document.getElementById('minPerDayWrap').style.display=this.value==='8h'?'':'none'"><option value="12h" selected>12/24h</option><option value="8h">8h (tylko dniówki)</option></select>
+          <select id="selShiftMode" onchange="var v=this.value==='8h';document.getElementById('minPerDayWrap').style.display=v?'':'none';document.getElementById('weWrap8h').style.display=v?'':'none'"><option value="12h" selected>12/24h</option><option value="8h">8h (tylko dniówki)</option></select>
         </div>
-        <div id="minPerDayWrap" style="display:none"><label>Min. osób na zmianę / dzień</label><input type="number" id="minPerDay" value="1" min="1" max="20"></div>
+        <div id="minPerDayWrap" style="display:none"><label>Ilość zmian na dzień</label><select id="minPerDay"><option value="1" selected>1 zmiana</option><option value="2">2 zmiany (I, II)</option><option value="3">3 zmiany (I, II, III)</option></select></div>
+        <div id="weWrap8h" style="display:none"><label class="chkr"><input type="checkbox" id="chk8hWe" onchange="document.getElementById('maxSunWrap').style.display=this.checked?'':'none'"><span class="chkl">Pracujące weekendy</span></label><div class="chkn" style="margin-left:20px">Generuje zmiany 8h również w Sb-Nd</div><div id="maxSunWrap" style="display:none;margin-top:6px"><label class="chkr"><input type="checkbox" id="chkMaxSun" checked><span class="chkl">Max 2 niedziele pod rząd</span></label><div class="chkn" style="margin-left:20px">Pracownik nie może pracować więcej niż 2 kolejne niedziele</div></div></div>
         <div><label>Max odchylenie godzin</label><input type="number" id="selT" value="24" min="0" max="120"></div>
         <label class="chkr"><input type="checkbox" id="chkAutoSave" checked onchange="localStorage.setItem('sm_autosave',this.checked?'1':'0')"><span class="chkl">Autozapis</span></label>
         <button class="genbtn" style="font-size:12px;padding:6px 12px;margin-top:2px" onclick="saveW()">💾 Zapisz zmiany</button>
