@@ -38,7 +38,6 @@ header h1 span{color:var(--acc)}
 .thbtn:hover{border-color:var(--acc)}
 .hbtn{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--muted);cursor:pointer;font-family:'Fira Code',monospace;font-size:10px;padding:5px 8px;transition:all .15s;white-space:nowrap}
 .hbtn:hover{border-color:var(--acc);color:var(--acc)}
-.hbtn.sv:hover{border-color:var(--teal);color:var(--teal)}
 .toast{font-family:'Fira Code',monospace;font-size:10px;color:var(--teal);opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
 
 /* LAYOUT */
@@ -74,6 +73,9 @@ input:focus,select:focus{border-color:var(--acc)}
 .warr.op{transform:rotate(180deg)}
 .wdel{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:0 2px;transition:color .2s;flex-shrink:0}
 .wdel:hover{color:var(--red)}
+.wdisbtn{background:none;border:none;font-size:13px;padding:2px 4px;cursor:pointer;color:var(--muted);border-radius:3px;line-height:1;transition:color .15s;flex-shrink:0}
+.wdisbtn:hover{color:var(--text)}.wdisbtn.dis{color:var(--red)}
+.wcard.wdis{opacity:0.42;transition:opacity .2s}
 .wbody{padding:0 10px 10px;border-top:1px solid var(--border)}
 .wopts{padding:8px 0 6px;border-bottom:1px solid var(--border);margin-bottom:3px;display:flex;flex-direction:column;gap:5px}
 .chkr{display:flex;align-items:flex-start;gap:7px;cursor:pointer;user-select:none}
@@ -240,6 +242,43 @@ td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
 .mob-close:hover{color:var(--acc)}
 .mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99}
 
+/* ── STALE NOTICE ────────────────────────────────────────────── */
+.stale-notice{display:flex;align-items:center;gap:10px;margin:10px 20px 0;padding:8px 14px;background:var(--yellow-bg);border:1px solid var(--yellow);border-radius:var(--rs);font-family:'Fira Code',monospace;font-size:10px;color:var(--yellow)}
+.stale-btn{margin-left:auto;background:var(--yellow);border:none;border-radius:var(--rs);color:#fff;cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;padding:4px 10px;white-space:nowrap;transition:opacity .15s}
+.stale-btn:hover{opacity:.85}
+[data-theme="dark"] .stale-notice{background:var(--yellow-dim)}
+
+/* ── PRE-FILL ─────────────────────────────────────────────────── */
+.prefill-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin:10px 20px 0;overflow:hidden}
+.prefill-hdr{display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid var(--border);background:var(--surface2)}
+.prefill-title{font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--text)}
+.prefill-ro{font-family:'Fira Code',monospace;font-size:9px;color:var(--muted);padding:2px 6px;border-radius:3px;background:var(--surface3);border:1px solid var(--border)}
+.prefill-scroll{overflow-x:auto;padding-bottom:2px}
+.prefill-table{border-collapse:collapse;font-size:11px;min-width:100%}
+.prefill-table th,.prefill-table td{padding:3px 7px;text-align:center;border-bottom:1px solid var(--border)}
+.prefill-table thead th{font-size:9px;font-weight:700;color:var(--muted);background:var(--surface);padding:5px 7px;min-width:32px}
+.prefill-table thead th:first-child{position:sticky;left:0;z-index:2;border-right:1px solid var(--border)}
+.pf-av{width:22px;height:22px;border-radius:50%;border:1.5px solid;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0}
+.pf-wcell{text-align:left;white-space:nowrap;position:sticky;left:0;background:var(--surface);z-index:1;border-right:1px solid var(--border)}
+.pf-wcell{display:flex;align-items:center;gap:5px;padding:3px 8px 3px 10px}
+.pf-wname{font-size:10px;color:var(--text2);font-family:'Outfit',sans-serif;font-weight:600;white-space:nowrap}
+.pf-dnum{font-size:11px;font-weight:700;color:var(--text2);line-height:1.2}
+.pf-ddow{font-size:8px;color:var(--muted);font-family:'Fira Code',monospace;text-transform:uppercase}
+.pf-col-we{background:var(--surface2)!important}
+.pf-cell{display:inline-block;font-size:8px;font-weight:700;font-family:'Fira Code',monospace;padding:1px 4px;border-radius:3px;letter-spacing:.3px;border:1px solid transparent}
+.pf-vac  {background:var(--purple-bg);color:var(--purple);border-color:var(--purple)}
+.pf-vac-w{background:var(--blue-bg);  color:var(--blue);  border-color:var(--blue)}
+.pf-off  {background:var(--gray-bg);  color:var(--gray);  border-color:var(--gray)}
+.pf-nod  {background:var(--yellow-bg);color:var(--yellow);border-color:var(--yellow)}
+.pf-non  {background:var(--orange-bg);color:var(--orange);border-color:var(--orange)}
+.pf-nob  {background:var(--red-bg);   color:var(--red);   border-color:var(--red)}
+[data-theme="dark"] .pf-vac  {background:var(--purple-dim)}
+[data-theme="dark"] .pf-vac-w{background:var(--blue-dim)}
+[data-theme="dark"] .pf-off  {background:var(--gray-dim)}
+[data-theme="dark"] .pf-nod  {background:var(--yellow-dim)}
+[data-theme="dark"] .pf-non  {background:var(--orange-dim)}
+[data-theme="dark"] .pf-nob  {background:var(--red-dim)}
+
 /* ── RESPONSIVE ───────────────────────────────────────────────── */
 @media(max-width:900px){
   header{padding:8px 12px;gap:8px;flex-wrap:wrap}
@@ -336,6 +375,34 @@ td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
 .login-local{text-align:center;margin-top:12px}
 .login-local button{background:none;border:none;color:var(--muted);cursor:pointer;font-family:'Fira Code',monospace;font-size:10px;text-decoration:underline}
 .login-local button:hover{color:var(--acc)}
+.btn-sec{background:none;border:1px solid var(--border);border-radius:var(--rs);color:var(--text2);cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;font-weight:500;padding:7px 16px;transition:all .15s}
+.btn-sec:hover{background:var(--surface2);border-color:var(--border2);color:var(--text)}
+.btn-ghost-danger{background:none;border:1px solid var(--border);border-radius:var(--rs);color:var(--red);cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;font-weight:500;padding:7px 16px;transition:all .15s}
+.btn-ghost-danger:hover{background:var(--surface2);border-color:var(--red)}
+
+/* ── TEAM SELECT ────────────────────────────────────────── */
+.ts-team-list{display:flex;flex-direction:column;gap:5px;max-height:220px;overflow-y:auto}
+.ts-team-item{display:flex;align-items:center;gap:8px;padding:9px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);cursor:pointer;transition:all .15s}
+.ts-team-item:hover{border-color:var(--acc);background:var(--acc-dim)}
+.ts-team-name{flex:1;font-weight:700;font-size:13px}
+.ts-team-role{font-family:'Fira Code',monospace;font-size:9px;padding:2px 6px;border-radius:3px;border:1px solid}
+.ts-role-admin{background:var(--purple-bg);border-color:var(--purple);color:var(--purple)}
+.ts-role-editor{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
+.ts-role-worker{background:var(--green-bg);border-color:var(--green);color:var(--green)}
+[data-theme="dark"] .ts-role-admin{background:var(--purple-dim)}
+[data-theme="dark"] .ts-role-editor{background:var(--blue-dim)}
+[data-theme="dark"] .ts-role-worker{background:var(--green-dim)}
+.ts-empty{font-family:'Fira Code',monospace;font-size:11px;color:var(--muted);text-align:center;padding:16px 0}
+
+/* ── MEMBERS PANEL ──────────────────────────────────────── */
+.member-card{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs)}
+.member-name{flex:1;font-weight:600;font-size:12px}
+.member-role-sel{background:var(--surface);border:1px solid var(--border);border-radius:3px;font-family:'Fira Code',monospace;font-size:10px;padding:2px 4px;color:var(--text)}
+.member-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0 3px;transition:color .15s}
+.member-del:hover{color:var(--red)}
+
+/* ── ROLE BADGE IN TEAM BAR ─────────────────────────────── */
+.team-bar .trole{font-family:'Fira Code',monospace;font-size:9px;padding:1px 5px;border-radius:3px;border:1px solid}
 
 /* ── TEAM BAR ────────────────────────────────────────────── */
 .team-bar{background:var(--acc-dim);border-bottom:1px solid var(--border);padding:5px 14px;display:flex;align-items:center;gap:8px;font-family:'Fira Code',monospace;font-size:10px;flex-wrap:wrap}

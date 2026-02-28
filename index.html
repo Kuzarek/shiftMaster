@@ -11,40 +11,83 @@
 <script src="js/config.js"></script>
 </head>
 <body>
-<!-- LOGIN OVERLAY -->
-<div class="login-overlay" id="loginOverlay">
+<!-- AUTH OVERLAY (ekran 1: logowanie / rejestracja) -->
+<div class="login-overlay" id="authOverlay">
   <div style="text-align:center">
     <div class="logo" style="margin:0 auto 8px;width:48px;height:48px;font-size:24px;border-radius:14px">⚡</div>
     <h1 style="font-size:22px;font-weight:800">Shift<span style="color:var(--acc)">Master</span></h1>
-    <div class="subtitle" style="margin-bottom:4px">Generator grafiku · Tryb zespołowy</div>
+    <div class="subtitle" style="margin-bottom:4px">Generator grafiku · v1.0</div>
   </div>
   <div class="login-box">
     <div class="login-tabs">
-      <button class="login-tab active" onclick="showLoginTab('join')">Dołącz do zespołu</button>
-      <button class="login-tab" onclick="showLoginTab('create')">Utwórz zespół</button>
+      <button class="login-tab active" onclick="showAuthTab('login')">Logowanie</button>
+      <button class="login-tab" onclick="showAuthTab('register')">Rejestracja</button>
     </div>
-    <div id="loginJoin">
-      <label>ID zespołu lub link</label>
-      <input id="joinTeamId" placeholder="np. abc123 lub pełny link">
-      <label>Hasło zespołu</label>
-      <input id="joinPassword" type="password" placeholder="Hasło ustalone przez lidera">
-      <label>Twoje imię</label>
-      <input id="joinName" placeholder="np. Jan Kowalski">
-      <div class="login-err" id="joinErr"></div>
-      <button class="login-btn" onclick="doJoinTeam()">Dołącz</button>
+    <div id="authLogin">
+      <label>Login</label>
+      <input id="loginUser" placeholder="np. jan_kowalski" autocomplete="username">
+      <label>Hasło</label>
+      <input id="loginPass" type="password" placeholder="Twoje hasło" autocomplete="current-password">
+      <div class="login-err" id="loginErr"></div>
+      <button class="login-btn" onclick="doLogin()">Zaloguj się</button>
     </div>
-    <div id="loginCreate" style="display:none">
-      <label>Nazwa zespołu</label>
-      <input id="createTeamName" placeholder="np. Ochrona Warszawa">
-      <label>Hasło dla zespołu</label>
-      <input id="createPassword" type="password" placeholder="Min. 4 znaki">
-      <label>Twoje imię</label>
-      <input id="createName" placeholder="np. Jan Kowalski">
-      <div class="login-err" id="createErr"></div>
-      <button class="login-btn" onclick="doCreateTeam()">Utwórz zespół</button>
+    <div id="authRegister" style="display:none">
+      <label>Login (min 3 znaki, a-z, 0-9, _)</label>
+      <input id="regUser" placeholder="np. jan_kowalski" autocomplete="username">
+      <label>Wyświetlana nazwa</label>
+      <input id="regName" placeholder="np. Jan Kowalski">
+      <label>Hasło (min 4 znaki)</label>
+      <input id="regPass" type="password" placeholder="Hasło" autocomplete="new-password">
+      <label>Powtórz hasło</label>
+      <input id="regPass2" type="password" placeholder="Powtórz hasło" autocomplete="new-password">
+      <div class="login-err" id="regErr"></div>
+      <button class="login-btn" onclick="doRegister()">Zarejestruj się</button>
     </div>
     <div class="login-local">
       <button onclick="startLocalMode()">lub pracuj lokalnie bez zespołu</button>
+    </div>
+  </div>
+</div>
+
+<!-- TEAM SELECT OVERLAY (ekran 2: wybór zespołu) -->
+<div class="login-overlay" id="teamSelectOverlay" style="display:none">
+  <div style="text-align:center">
+    <div class="logo" style="margin:0 auto 8px;width:48px;height:48px;font-size:24px;border-radius:14px">⚡</div>
+    <h1 style="font-size:22px;font-weight:800">Shift<span style="color:var(--acc)">Master</span></h1>
+    <div class="subtitle" style="margin-bottom:4px" id="tsWelcome">Witaj!</div>
+  </div>
+  <div class="login-box">
+    <div class="sec" style="margin-bottom:10px">Twoje zespoły</div>
+    <div id="tsTeamList" class="ts-team-list"></div>
+    <div id="tsEmpty" class="ts-empty" style="display:none">Nie należysz jeszcze do żadnego zespołu.</div>
+    <div style="display:flex;gap:6px;margin-top:12px">
+      <button class="login-btn" style="flex:1;margin-top:0" onclick="showTsCreate()">+ Utwórz zespół</button>
+      <button class="login-btn" style="flex:1;margin-top:0;background:var(--surface2);color:var(--text);border:1px solid var(--border)" onclick="showTsJoin()">Dołącz</button>
+    </div>
+    <div id="tsCreateForm" style="display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+      <label>Tryb zmian</label>
+      <select id="tsCreateMode" style="margin-bottom:8px">
+        <option value="12h" selected>12/24h — dyżury (ochrona, służby)</option>
+        <option value="8h">8h — biuro (Pn–Pt)</option>
+      </select>
+      <label>Nazwa zespołu</label>
+      <input id="tsCreateName" placeholder="np. Ochrona Warszawa">
+      <label>Hasło dla zespołu</label>
+      <input id="tsCreatePw" type="password" placeholder="Min. 4 znaki">
+      <div class="login-err" id="tsCreateErr"></div>
+      <button class="login-btn" onclick="doCreateTeamNew()">Utwórz</button>
+    </div>
+    <div id="tsJoinForm" style="display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+      <label>ID zespołu lub link</label>
+      <input id="tsJoinId" placeholder="np. abc123 lub pełny link">
+      <label>Hasło zespołu</label>
+      <input id="tsJoinPw" type="password" placeholder="Hasło ustalone przez lidera">
+      <div class="login-err" id="tsJoinErr"></div>
+      <button class="login-btn" onclick="doJoinTeamNew()">Dołącz</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px;justify-content:center">
+      <button class="btn-sec" onclick="startLocalMode()">Tryb lokalny</button>
+      <button class="btn-ghost-danger" onclick="doLogoutUser()">Wyloguj</button>
     </div>
   </div>
 </div>
@@ -56,19 +99,30 @@
   <div class="hacts">
     <span class="toast" id="toast"></span>
     <button class="thbtn" onclick="togTheme()" id="thBtn">🌙</button>
-    <button class="hbtn sv" onclick="saveW()">💾 Zapisz</button>
-    <button class="hbtn" onclick="loadW()">📂 Wczytaj</button>
-    <button class="hbtn" onclick="clearSave()" style="opacity:.45">🗑</button>
+    <button class="hbtn" onclick="saveW()">💾 Zapisz</button>
+    <button class="hbtn" id="loadBtn" onclick="loadW()" style="display:none">📂 Wczytaj</button>
+    <button class="hbtn" id="clearBtn" onclick="clearSave()" style="opacity:.45;display:none">🗑</button>
     <button class="hbtn" onclick="showTutorial()">❓ Pomoc</button>
+    <button class="hbtn" onclick="showContact()">✉ Kontakt</button>
     <button class="mob-toggle" onclick="togSidebar()">☰ Panel</button>
   </div>
 </header>
+<div id="contactModal" onclick="if(event.target===this)hideContact()" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.45);align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:28px 32px;min-width:260px;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,.25);position:relative">
+    <button onclick="hideContact()" style="position:absolute;top:10px;right:12px;background:none;border:none;font-size:18px;color:var(--muted);cursor:pointer;line-height:1">×</button>
+    <div style="font-size:13px;font-weight:700;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:14px">Kontakt</div>
+    <div style="font-size:11px;color:var(--text2);font-family:'Fira Code',monospace;margin-bottom:14px;line-height:1.6">Autor aplikacji — w razie błędów<br>lub problemów napisz na:</div>
+    <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">Piotr Jura</div>
+    <a href="mailto:piotr.jura94@gmail.com" style="font-family:'Fira Code',monospace;font-size:12px;color:var(--acc);text-decoration:none">piotr.jura94@gmail.com</a>
+  </div>
+</div>
 <div class="team-bar" id="teamBar" style="display:none">
   <span class="tbn" id="teamNameDisp"></span>
   <span class="tmn" id="teamMemberDisp"></span>
+  <span class="trole" id="teamRoleDisp"></span>
   <span class="tsync" id="syncStatus"></span>
   <span class="tlink" onclick="copyTeamLink()" title="Kopiuj link zaproszenia">📋 Kopiuj link</span>
-  <button class="tlogout" onclick="doLogout()">Wyloguj</button>
+  <button class="tlogout" onclick="doLogout()">Zmień zespół</button>
 </div>
 <div class="local-bar" id="localBar" style="display:none">
   <span class="lbn">Tryb lokalny</span>
@@ -80,8 +134,8 @@
   <button class="mob-close" id="mobClose" onclick="togSidebar()">✕ Zamknij</button>
   <div class="stabs">
     <button class="stab active" onclick="showP('pw',this)">👥 Pracownicy</button>
-    <button class="stab" onclick="showP('pwe',this)">📅 Weekendy</button>
-    <button class="stab" onclick="showP('ps',this)">⚙ Opcje</button>
+    <button class="stab" id="tabOptions" onclick="showP('ps',this)">⚙ Opcje</button>
+    <button class="stab" id="tabMembers" onclick="showP('pm',this)" style="display:none">👑 Członkowie</button>
   </div>
   <div class="spanel active" id="pw">
     <div>
@@ -106,7 +160,7 @@
       <button class="addwbtn" onclick="addW()" style="margin-top:6px">+ Dodaj pracownika</button>
     </div>
   </div>
-  <div class="spanel" id="pwe">
+  <div class="spanel" id="ps">
     <div>
       <div class="sec">Tryb weekendów</div>
       <p style="font-size:9px;color:var(--muted);line-height:1.7;margin-bottom:9px;font-family:'Fira Code',monospace">
@@ -114,8 +168,6 @@
       </p>
       <div class="wegrid" id="wegrid"></div>
     </div>
-  </div>
-  <div class="spanel" id="ps">
     <div>
       <div class="sec">Generator</div>
       <div style="display:flex;flex-direction:column;gap:8px">
@@ -126,8 +178,13 @@
         <div><label>Liczba grafików</label>
           <select id="selC"><option value="1" selected>1</option><option value="3">3</option><option value="5">5</option><option value="10">10</option></select>
         </div>
-        <div><label>Tryb zmian</label>
-          <select id="selShiftMode" onchange="var v=this.value==='8h';document.getElementById('minPerDayWrap').style.display=v?'':'none';document.getElementById('weWrap8h').style.display=v?'':'none'"><option value="12h" selected>12/24h</option><option value="8h">8h (tylko dniówki)</option></select>
+        <div id="shiftModeRow" style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+          <label style="margin:0">Tryb zmian</label>
+          <div style="display:flex;align-items:center;gap:4px">
+            <select id="selShiftMode" onchange="var v=this.value==='8h';document.getElementById('minPerDayWrap').style.display=v?'':'none';document.getElementById('weWrap8h').style.display=v?'':'none';document.getElementById('shiftModeDisp').textContent=v?'8h':'12/24h'"><option value="12h" selected>12/24h</option><option value="8h">8h</option></select>
+            <strong id="shiftModeDisp" style="display:none;font-size:12px;padding:2px 7px;border-radius:4px;background:var(--surface2);border:1px solid var(--border)">12/24h</strong>
+            <button id="shiftModeChgBtn" onclick="shiftModeStartEdit()" style="display:none;font-size:10px;padding:2px 6px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);cursor:pointer;color:var(--text2)">✎</button>
+          </div>
         </div>
         <div id="minPerDayWrap" style="display:none"><label>Ilość zmian na dzień</label><select id="minPerDay"><option value="1" selected>1 zmiana</option><option value="2">2 zmiany (I, II)</option><option value="3">3 zmiany (I, II, III)</option></select></div>
         <div id="weWrap8h" style="display:none"><label class="chkr"><input type="checkbox" id="chk8hWe" onchange="document.getElementById('maxSunWrap').style.display=this.checked?'':'none'"><span class="chkl">Pracujące weekendy</span></label><div class="chkn" style="margin-left:20px">Generuje zmiany 8h również w Sb-Nd</div><div id="maxSunWrap" style="display:none;margin-top:6px"><label class="chkr"><input type="checkbox" id="chkMaxSun" checked><span class="chkl">Max 2 niedziele pod rząd</span></label><div class="chkn" style="margin-left:20px">Pracownik nie może pracować więcej niż 2 kolejne niedziele</div></div></div>
@@ -149,6 +206,12 @@
       </div>
     </div>
   </div>
+  <div class="spanel" id="pm">
+    <div>
+      <div class="sec">Członkowie zespołu</div>
+      <div id="membersList" style="display:flex;flex-direction:column;gap:5px"></div>
+    </div>
+  </div>
   <div class="genwrap">
     <button class="genbtn" id="genBtn" onclick="runGen()">⚡ Generuj Grafik</button>
   </div>
@@ -156,6 +219,8 @@
 <div class="mob-overlay" id="mobOverlay" onclick="togSidebar()"></div>
 <main class="main">
   <div id="approvedBanner"></div>
+  <div id="preFillSection"></div>
+  <div id="staleNotice"></div>
   <div class="main-inner" id="archivedInner" style="display:none"></div>
   <div class="main-inner" id="mainInner">
     <div class="empty">

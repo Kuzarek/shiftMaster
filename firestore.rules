@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── USERS ────────────────────────────────────────────
+    match /users/{userId} {
+      // Każdy może sprawdzić czy login istnieje (potrzebne do rejestracji/logowania)
+      allow read: if true;
+
+      // Tworzenie: tylko jeśli doc nie istnieje i dane mają poprawną strukturę
+      allow create: if !exists(/databases/$(database)/documents/users/$(userId))
+        && request.resource.data.keys().hasAll(['login', 'displayName', 'passwordHash', 'teams'])
+        && request.resource.data.login == userId
+        && request.resource.data.login is string
+        && request.resource.data.login.size() >= 3
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() >= 1
+        && request.resource.data.passwordHash is string
+        && request.resource.data.passwordHash.size() == 64
+        && request.resource.data.teams is map;
+
+      // Aktualizacja: nie można zmienić loginu ani hasła przez update
+      // (tylko teams map może być modyfikowany)
+      allow update: if request.resource.data.login == resource.data.login
+        && request.resource.data.passwordHash == resource.data.passwordHash
+        && request.resource.data.displayName == resource.data.displayName;
+
+      // Nie można usuwać kont
+      allow delete: if false;
+    }
+
+    // ── TEAMS ────────────────────────────────────────────
+    match /teams/{teamId} {
+      allow read: if true;
+
+      // Tworzenie zespołu: wymagane pola
+      allow create: if request.resource.data.keys().hasAll(['name', 'passwordHash', 'workers', 'members'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 1
+        && request.resource.data.name.size() <= 100
+        && request.resource.data.passwordHash is string
+        && request.resource.data.passwordHash.size() == 64
+        && request.resource.data.workers is list
+        && request.resource.data.members is map;
+
+      // Aktualizacja: nie można zmienić hasła zespołu (tylko admin powinien)
+      // Ale bez Firebase Auth nie możemy sprawdzić kto to robi
+      // Więc walidujemy że hasło się nie zmienia
+      allow update: if request.resource.data.passwordHash == resource.data.passwordHash
+        && request.resource.data.name == resource.data.name;
+
+      // Nie można usuwać zespołów
+      allow delete: if false;
+    }
+  }
+}

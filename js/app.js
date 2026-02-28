@@ -6,13 +6,15 @@ const DNS=['Nd','Pn','Wt','Śr','Cz','Pt','Sb'];
 const LS='shiftmaster_v6';
 
 // day value meanings:
-// 'vac'   = urlop (Pn-Pt +8h, weekend 0h)
-// 'off'   = niedostępny (0h, nie można przypisać)
-// 'no-d'  = tylko noc (ograniczenie)
-// 'no-n'  = tylko dzień (ograniczenie)
-// 'no-both'= oba zablokowane
+// 'vac'   = vacation (Mon-Fri +8h, weekend 0h)
+// 'off'   = unavailable (0h, cannot assign)
+// 'no-d'  = night only (restriction)
+// 'no-n'  = day only (restriction)
+// 'no-both'= both blocked
 
 let wCtr=0, workers=[], weModes={}, cmode={}, schedules=[];
+let _scheduleStale=null; // month key "Y-M" or null
+let _cachedStaleSchedules=null;
 
 // ── UTILS ──────────────────────────────────────────────────────────
 const dim=(y,m)=>new Date(y,m,0).getDate();
@@ -21,6 +23,9 @@ const addD=(s,n)=>{const d=new Date(s);d.setDate(d.getDate()+n);return d.toISOSt
 const dow=(y,m,d)=>new Date(y,m-1,d).getDay();
 const isWD=(y,m,d)=>{const w=dow(y,m,d);return w>=1&&w<=5};
 const ym=()=>({y:+document.getElementById('selY').value,m:+document.getElementById('selM').value});
+
+function showContact(){document.getElementById('contactModal').style.display='flex';}
+function hideContact(){document.getElementById('contactModal').style.display='none';}
 
 // ── THEME ──────────────────────────────────────────────────────────
 function togTheme(){
@@ -51,7 +56,7 @@ function saveW(){
   if(teamSession&&db){saveToFirestore();return;}
   try{
     localStorage.setItem(LS,JSON.stringify({
-      workers:workers.map(w=>({id:w.id,name:w.name,color:w.color,days:w.days||{},minDays:w.minDays||0})),
+      workers:workers.map(w=>({id:w.id,name:w.name,color:w.color,days:w.days||{},minDays:w.minDays||0,reqDays:w.reqDays||[]})),
       ctr:wCtr
     }));
     toast('✓ Zapisano '+workers.length+' pracowników');
@@ -62,7 +67,7 @@ function loadW(){
   try{
     const raw=localStorage.getItem(LS);if(!raw){toast('Brak danych');return;}
     const d=JSON.parse(raw);
-    workers=d.workers.map(w=>({...w,_open:false,days:w.days||{},minDays:w.minDays||(w.minDays2?2:0)}));
+    workers=d.workers.map(w=>({...w,_open:false,days:w.days||{},minDays:w.minDays||0,reqDays:w.reqDays||[]}));
     wCtr=d.ctr||workers.length;
     workers.forEach(w=>{cmode[w.id]='vac';});
     renderWorkers();toast('✓ Wczytano '+workers.length+' pracowników');
@@ -79,17 +84,18 @@ function showP(id,btn){
   document.querySelectorAll('.spanel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
   document.getElementById(id).classList.add('active');btn.classList.add('active');
+  if(id==='pm')renderMembers();
 }
 
 // ── MONTH / WEEKEND ────────────────────────────────────────────────
 function onMC(){
-  // Wyjdź z widoku zatwierdzonego przy zmianie miesiąca
+  // Exit approved view when changing month
   if(_approvedViewActive){_hideApprovedSchedule();}
   schedules=[];window._schedMeta=null;
   buildWeModes();renderWorkers();renderWEGrid();
   document.getElementById('mainInner').innerHTML='<div class="empty"><div class="empty-icon">📅</div><h2>Brak grafiku</h2><p>Skonfiguruj pracowników, oznacz urlopy i kliknij „Generuj Grafik"</p></div>';
   renderApprovedBanner(_cachedAppSch);
-  // Automatycznie pokaż zatwierdzony grafik dla nowego miesiąca
+  // Auto-show approved schedule for the new month
   const {y,m}=ym();const mk=y+'-'+m;
   const ap=_cachedAppSch&&_cachedAppSch[mk];
   if(ap&&!ap.revoked&&teamSession&&db){
@@ -109,6 +115,7 @@ function onMC(){
       document.getElementById('mainInner').innerHTML='<div class="empty"><div class="empty-icon">📅</div><h2>Brak grafiku</h2><p>Skonfiguruj pracowników, oznacz urlopy i kliknij „Generuj Grafik"</p></div>';
     }
   }
+  renderStaleNotice();
 }
 function buildWeModes(){
   const {y,m}=ym();const n=dim(y,m);const nx={};
@@ -137,7 +144,7 @@ function renderWEGrid(){
 // ── WORKERS ────────────────────────────────────────────────────────
 function addW(name){
   const id=wCtr++;
-  workers.push({id,name:name||`Pracownik ${id+1}`,color:COLORS[workers.length%COLORS.length],_open:false,days:{},minDays:0});
+  workers.push({id,name:name||`Pracownik ${id+1}`,color:COLORS[workers.length%COLORS.length],_open:false,days:{},minDays:0,reqDays:[],login:null,disabled:false});
   cmode[id]='vac';renderWorkers();autoSave();
 }
 function delW(id){workers=workers.filter(w=>w.id!==id);renderWorkers();autoSave();}
@@ -145,7 +152,7 @@ function renderWorkers(){
   const {y,m}=ym();const list=document.getElementById('wlist');list.innerHTML='';
   workers.forEach(w=>{
     const div=document.createElement('div');
-    div.className='wcard'+(w._open?' exp':'');div.id='wc'+w.id;
+    div.className='wcard'+(w._open?' exp':'')+(w.disabled&&teamSession?' wdis':'');div.id='wc'+w.id;
     div.innerHTML=buildWCard(w,y,m);list.appendChild(div);
   });
 }
@@ -155,21 +162,35 @@ function buildWCard(w,y,m){
   const body=w._open?`<div class="wbody">${buildWOpts(w)}${buildCal(w,y,m)}</div>`:'';
   const initials=w.name.trim().split(/\s+/).map(p=>p[0]||'').join('').slice(0,2).toUpperCase()||'?';
   const hex=w.color;
+  const canEdit=canEditWorker(w);
+  const isAdmin=!teamSession||teamSession.role==='admin';
+  const disBtn=(teamSession&&canDo('generate'))?`<button class="wdisbtn${w.disabled?' dis':''}" onclick="togWDis(${w.id})" title="${w.disabled?'Włącz do grafiku':'Wyklucz z grafiku'}">${w.disabled?'⊘':'◉'}</button>`:'';
+  const delBtn=isAdmin?`<button class="wdel" onclick="delW(${w.id})">×</button>`:'';
   return `<div class="whead">
     <div class="wavatar" style="background:${hex}22;border:1.5px solid ${hex}88;color:${hex}">${initials}</div>
-    <input class="wname" value="${w.name}" oninput="workers.find(x=>x.id===${w.id}).name=this.value;autoSave()" placeholder="Imię">
+    ${canEdit
+      ?`<input class="wname" value="${w.name}" oninput="workers.find(x=>x.id===${w.id}).name=this.value;autoSave()" placeholder="Imię">`
+      :`<span class="wname" style="cursor:default;color:var(--text2)">${w.name}</span>`}
     <div class="wbadges">${badges}</div>
-    <button class="warr${w._open?' op':''}" onclick="togW(${w.id})">▾</button>
-    <button class="wdel" onclick="delW(${w.id})">×</button>
+    ${disBtn}<button class="warr${w._open?' op':''}" onclick="togW(${w.id})">▾</button>
+    ${delBtn}
   </div>${body}`;
 }
 function buildWOpts(w){
   const v=w.minDays||0;
+  const rd=w.reqDays||[];
+  const DAYS=['Pn','Wt','Śr','Cz','Pt'];
+  const canEdit=canEditWorker(w);
+  const dayChks=DAYS.map((d,i)=>{
+    const wd=i+1; // 1=Mon..5=Fri
+    const chk=rd.includes(wd)?'checked':'';
+    return `<label style="display:flex;align-items:center;gap:2px;cursor:${canEdit?'pointer':'default'};font-family:'Fira Code',monospace;font-size:10px;color:var(--text2)"><input type="checkbox" ${chk} ${canEdit?'':`disabled`} style="width:12px;height:12px;accent-color:var(--acc)" ${canEdit?`onchange="togReqDay(${w.id},${wd},this.checked)"`:''}">${d}</label>`;
+  }).join('');
   return `<div class="wopts">
     <div style="display:flex;align-items:center;gap:8px">
       <span class="chkl" style="flex:1">Min. dniówek Pn–Pt / tydzień</span>
-      <select style="width:50px" onchange="workers.find(x=>x.id===${w.id}).minDays=+this.value;autoSave()">
-        <option value="0"${v===0?' selected':''}>—</option>
+      <select style="width:50px" ${canEdit?`onchange="workers.find(x=>x.id===${w.id}).minDays=+this.value;renderWorkers();autoSave()"`:''} ${canEdit?'':'disabled'}>
+        <option value="0"${v===0?' selected':''}>0</option>
         <option value="1"${v===1?' selected':''}>1</option>
         <option value="2"${v===2?' selected':''}>2</option>
         <option value="3"${v===3?' selected':''}>3</option>
@@ -177,15 +198,35 @@ function buildWOpts(w){
         <option value="5"${v===5?' selected':''}>5</option>
       </select>
     </div>
-    <div class="chkn">Algorytm priorytetowo przydzieli min. tyle dniówek tygodniowo (0 = wył.)</div>
+    ${v>0?`<div style="display:flex;gap:6px;margin-top:4px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:9px;color:var(--muted);font-family:'Fira Code',monospace">Obowiązkowe:</span>
+      ${dayChks}
+    </div>
+    <div class="chkn">Zaznaczone dni = obowiązkowa dniówka. Reszta min. ${v} wypełniona dowolnie.</div>`
+    :`<div class="chkn">Algorytm priorytetowo przydzieli min. tyle dniówek tygodniowo (0 = wył.)</div>`}
   </div>`;
+}
+
+function togReqDay(wid,wd,checked){
+  const w=workers.find(x=>x.id===wid);if(!w)return;
+  if(!w.reqDays)w.reqDays=[];
+  if(checked){if(!w.reqDays.includes(wd))w.reqDays.push(wd);}
+  else{w.reqDays=w.reqDays.filter(d=>d!==wd);}
+  w.reqDays.sort();markStale();
+  autoSave();
 }
 
 function togW(id){
   const w=workers.find(x=>x.id===id);if(!w)return;
   w._open=!w._open;const {y,m}=ym();
   const c=document.getElementById('wc'+id);
-  c.className='wcard'+(w._open?' exp':'');c.innerHTML=buildWCard(w,y,m);
+  c.className='wcard'+(w._open?' exp':'')+(w.disabled&&teamSession?' wdis':'');c.innerHTML=buildWCard(w,y,m);
+}
+
+function togWDis(id){
+  if(!canDo('generate'))return;
+  const w=workers.find(x=>x.id===id);if(!w)return;
+  w.disabled=!w.disabled;renderWorkers();markStale();autoSave();
 }
 
 // ── MINI CALENDAR ─────────────────────────────────────────────────
@@ -199,9 +240,10 @@ const CM={
 function buildCal(w,y,m){
   const n=dim(y,m);const off=(dow(y,m,1)+6)%7;
   const cm=cmode[w.id]||'vac';const cnt=Object.keys(w.days).length;
-  const btns=Object.entries(CM).map(([k,v])=>
+  const canEdit=canEditWorker(w);
+  const btns=canEdit?Object.entries(CM).map(([k,v])=>
     `<button class="cmbtn${cm===k?' on-'+k:''}" onclick="setCM(${w.id},'${k}')">${v.l}</button>`
-  ).join('');
+  ).join(''):'';
   let g=`<div class="calgrid">${['Pn','Wt','Śr','Cz','Pt','Sb','Nd'].map(x=>`<div class="caldn">${x}</div>`).join('')}${Array(off).fill('<div class="cald emp"></div>').join('')}`;
   for(let d=1;d<=n;d++){
     const date=dstr(y,m,d);const wd=dow(y,m,d);const we=wd===0||wd===6;
@@ -215,8 +257,7 @@ function buildCal(w,y,m){
     g+=`<div class="cald ${cls}" onclick="calClick(${w.id},'${date}')">${d}</div>`;
   }
   g+='</div>';
-  return `<div class="cmodes">${btns}</div>
-  <div class="mhint">${CM[cm].h}</div>
+  return `${canEdit?`<div class="cmodes">${btns}</div><div class="mhint">${CM[cm].h}</div>`:''}
   <div class="calhead"><span class="caltit">${MONTHS[m]} ${y}</span><span class="calcnt">${cnt} oznaczeń</span></div>
   ${g}
   <div class="calleg">
@@ -228,11 +269,12 @@ function buildCal(w,y,m){
   </div>`;
 }
 function setCM(wid,mode){
-  cmode[wid]=mode;const w=workers.find(x=>x.id===wid);
+  const w=workers.find(x=>x.id===wid);if(!w||!canEditWorker(w))return;
+  cmode[wid]=mode;
   if(w&&w._open){const {y,m}=ym();document.getElementById('wc'+wid).innerHTML=buildWCard(w,y,m);}
 }
 function calClick(wid,date){
-  const w=workers.find(x=>x.id===wid);if(!w)return;
+  const w=workers.find(x=>x.id===wid);if(!w||!canEditWorker(w))return;
   const cm=cmode[wid]||'vac';const cur=w.days[date];
   if(cm==='clr'){delete w.days[date];}
   else if(cm==='vac'){cur==='vac'?delete w.days[date]:w.days[date]='vac';}
@@ -249,7 +291,7 @@ function calClick(wid,date){
     else w.days[date]='no-n';
   }
   const {y,m}=ym();document.getElementById('wc'+wid).innerHTML=buildWCard(w,y,m);
-  autoSave();
+  renderPreFill();markStale();autoSave();
 }
 
 // ── SHIFT GENERATION ──────────────────────────────────────────────
@@ -266,8 +308,8 @@ function genShifts(y,m,shiftMode,minPerDay){
       }
     } else {
       if(wd>=1&&wd<=5){
-        // Awaryjne 24h: jeśli tylko 1 pracownik dostępny w dniu roboczym
-        const avail=workers.filter(w=>{const r=w.days[date];return r!=='vac'&&r!=='off';});
+        // Emergency 24h: if only 1 worker available on a workday
+        const avail=workers.filter(w=>{const r=w.days[date];return !(teamSession&&w.disabled)&&r!=='vac'&&r!=='off';});
         if(avail.length<=1){
           shifts.push({date,type:'24h',hours:24});
         } else {
@@ -289,9 +331,9 @@ function genShifts(y,m,shiftMode,minPerDay){
   return shifts;
 }
 
-// ── KWOTY (pre-obliczone przed generowaniem) ──────────────────────
-// Każdy pracownik dostaje równą kwotę dniówek Pn-Pt i nocek+weekendów.
-// Wszystkie dniówki Pn-Pt traktowane jako biurowe (nie ma rozróżnienia B/D).
+// ── QUOTAS (pre-computed before generation) ──────────────────────
+// Each worker gets an equal quota of weekday day-shifts and night+weekend shifts.
+// All Mon-Fri day-shifts treated as office shifts (no B/D distinction).
 
 function buildQuotas(y,m,shiftMode,minPerDay){
   const is8=shiftMode==='8h';
@@ -310,15 +352,16 @@ function buildQuotas(y,m,shiftMode,minPerDay){
       else if(mo==='split'){weH+=24;}
     }
   }
-  const numW=workers.length;
+  const activeW=teamSession?workers.filter(w=>!w.disabled):workers;
+  const numW=activeW.length;
   const dH=is8?8:12;
   const totalH=wdayDzien*mpd*dH+wdayNoc*12+weH;
-  const targetH=totalH/numW;
+  const targetH=numW?totalH/numW:0;
   const totalDSlots=is8?wdayDzien*mpd:wdayDzien;
-  const maxD=totalDSlots/numW;
+  const maxD=numW?totalDSlots/numW:0;
   const maxNocWeH=is8?0:Math.max(0,targetH-maxD*12);
   const quotas={};
-  workers.forEach(w=>{
+  activeW.forEach(w=>{
     quotas[w.id]={maxDzienWday:maxD,maxNocWeH,target:targetH};
   });
   return quotas;
@@ -344,6 +387,7 @@ function canAssign(w,shift,sched,cfg){
   if(r==='vac'||r==='off')return false;
   if(type==='dzien'&&(r==='no-d'||r==='no-both'))return false;
   if(type==='noc'&&(r==='no-n'||r==='no-both'))return false;
+  if(type==='24h'&&(r==='no-d'||r==='no-n'||r==='no-both'))return false;
   if(sched.some(e=>e.wid===wid&&e.date===date))return false;
 
   const prev=addD(date,-1),next=addD(date,1);
@@ -352,11 +396,12 @@ function canAssign(w,shift,sched,cfg){
   if(pe){
     if(type==='dzien'&&(pe.type==='noc'||pe.type==='24h'))return false;
     if(type==='noc'&&pe.type==='24h')return false;
-    if(type==='24h'&&pe.type==='24h')return false;
+    if(type==='24h'&&(pe.type==='24h'||pe.type==='noc'))return false;
   }
   if(ne){
     if((type==='noc'||type==='24h')&&ne.type==='dzien')return false;
     if(type==='24h'&&ne.type==='24h')return false;
+    if(type==='noc'&&ne.type==='24h')return false;
   }
   if(cfg.maxN&&type==='noc'){
     const maxNVal=cfg.maxNVal||3;
@@ -371,7 +416,7 @@ function canAssign(w,shift,sched,cfg){
     if(c>=maxDVal)return false;
   }
 
-  // Max 2 niedziele pod rząd (8h z weekendami)
+  // Max 2 consecutive Sundays (8h mode with weekends)
   if(cfg.maxSun&&new Date(date).getDay()===0){
     let c=0;
     for(let w7=7;w7<=14;w7+=7){
@@ -381,8 +426,8 @@ function canAssign(w,shift,sched,cfg){
     if(c>=2)return false;
   }
 
-  // ── KWOTY – twarde limity ──────────────────────────────────────
-  // Główny limit: łączne godziny pracownika nie mogą przekroczyć target + tol
+  // ── QUOTAS – hard limits ──────────────────────────────────────
+  // Main limit: worker's total hours cannot exceed target + tolerance
   const myTotalH=sched.filter(e=>e.wid===wid).reduce((s,e)=>s+e.hours,0);
   if(myTotalH+shift.hours>q.target+cfg.tol)return false;
 
@@ -390,7 +435,7 @@ function canAssign(w,shift,sched,cfg){
   const is8all=!!shift.slot; // 8h mode (has slot) — all dzien treated equally
 
   if(type==='dzien'&&(isWday||is8all)){
-    // Twardy limit dniówek wg kwoty (w 8h liczymy wszystkie dzien, nie tylko weekday)
+    // Hard day-shift limit per quota (in 8h mode count all dzien, not just weekday)
     const myDzien=is8all
       ? sched.filter(e=>e.wid===wid&&e.type==='dzien').length
       : sched.filter(e=>e.wid===wid&&e.type==='dzien'&&(()=>{const w2=new Date(e.date).getDay();return w2>=1&&w2<=5;})()).length;
@@ -398,7 +443,7 @@ function canAssign(w,shift,sched,cfg){
   }
 
   if(!is8all&&(type==='noc'||type==='24h'||(type==='dzien'&&!isWday))){
-    // Limit godzin nocek+weekendów (nie dotyczy trybu 8h)
+    // Night+weekend hours limit (does not apply to 8h mode)
     const myNocWeH=sched.filter(e=>e.wid===wid&&(
       e.type==='noc'||e.type==='24h'||(e.type==='dzien'&&!e.slot&&(()=>{const w2=new Date(e.date).getDay();return w2===0||w2===6;})())
     )).reduce((s,e)=>s+e.hours,0);
@@ -411,37 +456,87 @@ function canAssign(w,shift,sched,cfg){
 function wScore(w,shift,sched,cfg){
   const wid=w.id;const q=cfg.quotas[wid];
   const myH=sched.filter(e=>e.wid===wid).reduce((s,e)=>s+e.hours,0);
-  let score=myH/q.target; // 0..1, niższe = bardziej potrzebuje
+  let score=myH/q.target; // 0..1, lower = needs more hours
 
-  // minDays: priorytet dla dniówek Pn-Pt gdy pracownik nie ma jeszcze wymaganej ilości w tygodniu
-  if(w.minDays&&shift.type==='dzien'){
-    const wd=new Date(shift.date).getDay();
-    if(wd>=1&&wd<=5){
-      const cnt=weekOfficeCnt(wid,shift.date,sched);
-      if(cnt<w.minDays)score-=1.5;
+  // reqDays: mandatory days — very strong day-shift priority + penalty for night on reqDay
+  const wd=new Date(shift.date).getDay();
+  if(w.reqDays&&w.reqDays.length&&w.reqDays.includes(wd)){
+    if(shift.type==='dzien'){
+      // Very strong bonus — we want this worker on day shift this day
+      score-=10;
+    } else {
+      // Penalty for assigning night/24h on a day that should be a day-shift
+      score+=8;
     }
   }
 
-  // 8h: preferuj zachowanie 12h odpoczynku (slot następnego dnia >= slot poprzedniego)
-  // Kara proporcjonalna do "skoku w dół" — III→I (skok 2) gorszy niż II→I (skok 1)
+  // minDays: priority for Mon-Fri day-shifts when worker hasn't met weekly minimum
+  if(w.minDays&&shift.type==='dzien'){
+    if(wd>=1&&wd<=5){
+      const cnt=weekOfficeCnt(wid,shift.date,sched);
+      if(cnt<w.minDays)score-=3;
+    }
+  }
+
+  // 8h: prefer maintaining 12h rest (next day's slot >= previous day's slot)
+  // Penalty proportional to "downward jump" — III→I (jump 2) worse than II→I (jump 1)
   if(shift.slot){
     const prev=addD(shift.date,-1);
     const pe=sched.find(e=>e.wid===wid&&e.date===prev);
     if(pe&&pe.slot&&shift.slot<pe.slot){
-      const gap=pe.slot-shift.slot; // 1 lub 2
-      score+=gap*50; // bardzo wysoka kara — prawie nigdy nie zostanie wybrany
+      const gap=pe.slot-shift.slot; // 1 or 2
+      score+=gap*50; // very high penalty — almost never picked
     }
   }
 
-  // 8h: bonus za kontynuację tego samego lub wyższego slotu (stabilność grafiku)
+  // 8h: bonus for continuing same or higher slot (schedule stability)
   if(shift.slot){
     const prev=addD(shift.date,-1);
     const pe=sched.find(e=>e.wid===wid&&e.date===prev);
-    if(pe&&pe.slot&&shift.slot===pe.slot)score-=0.3; // bonus za ten sam slot
+    if(pe&&pe.slot&&shift.slot===pe.slot)score-=0.3; // bonus for same slot
   }
 
   score+=(Math.random()-.5)*0.15;
   return score;
+}
+
+// Pre-fill: insert mandatory day-shifts (reqDays) into schedule before backtracking
+function prefillReqDays(shifts,y,m){
+  const prefilled=[];
+  const usedShifts=new Set(); // indices of shifts consumed by prefill
+  const n=dim(y,m);
+  for(let d=1;d<=n;d++){
+    const date=dstr(y,m,d);
+    const wd=dow(y,m,d);
+    if(wd<1||wd>5)continue; // Mon-Fri only
+    // Collect workers who have a reqDay on this weekday
+    const reqWorkers=workers.filter(w=>{
+      if(teamSession&&w.disabled)return false;
+      if(!w.reqDays||!w.reqDays.length)return false;
+      if(!w.reqDays.includes(wd))return false;
+      const r=w.days[date];
+      if(r==='vac'||r==='off'||r==='no-d'||r==='no-both')return false;
+      return true;
+    });
+    if(!reqWorkers.length)continue;
+    // Find a dzien shift for this date
+    for(const w of reqWorkers){
+      // Look for a free dzien shift on this date
+      const si=shifts.findIndex((s,i)=>!usedShifts.has(i)&&s.date===date&&s.type==='dzien');
+      if(si===-1)continue; // no dzien shift available — may be a 24h weekend
+      const s=shifts[si];
+      // Check for conflict with previous day (night/24h)
+      const prevDate=addD(date,-1);
+      if(prefilled.some(e=>e.wid===w.id&&e.date===prevDate&&(e.type==='noc'||e.type==='24h')))continue;
+      // Check if this worker already has an assignment on this date
+      if(prefilled.some(e=>e.wid===w.id&&e.date===date))continue;
+      prefilled.push({wid:w.id,date:s.date,type:s.type,hours:s.hours,slot:s.slot});
+      usedShifts.add(si);
+    }
+  }
+  // Return pre-filled schedule and remaining shifts
+  const remaining=shifts.filter((_,i)=>!usedShifts.has(i));
+  return {prefilled,remaining};
 }
 
 function backtrack(shifts,idx,sched,results,limit,cfg){
@@ -449,7 +544,7 @@ function backtrack(shifts,idx,sched,results,limit,cfg){
   if(cfg._deadline&&Date.now()>cfg._deadline)return;
   if(idx===shifts.length){results.push([...sched]);return;}
   const shift=shifts[idx];
-  const sorted=[...workers].sort((a,b)=>wScore(a,shift,sched,cfg)-wScore(b,shift,sched,cfg));
+  const sorted=(teamSession?workers.filter(w=>!w.disabled):[...workers]).sort((a,b)=>wScore(a,shift,sched,cfg)-wScore(b,shift,sched,cfg));
   for(const w of sorted){
     if(canAssign(w,shift,sched,cfg)){
       sched.push({wid:w.id,date:shift.date,type:shift.type,hours:shift.hours,slot:shift.slot});
@@ -463,9 +558,11 @@ function backtrack(shifts,idx,sched,results,limit,cfg){
 
 // ── RUNNER ────────────────────────────────────────────────────────
 function runGen(){
-  if(!workers.length){alert('Dodaj co najmniej 1 pracownika!');return;}
   const {y,m}=ym();const mk=y+'-'+m;
-  if(_cachedAppSch&&_cachedAppSch[mk])return;
+  clearStale(mk);
+  if(!canDo('generate')){toast('Brak uprawnień do generowania');return;}
+  if(!workers.length){alert('Dodaj co najmniej 1 pracownika!');return;}
+  if(_cachedAppSch&&_cachedAppSch[mk]&&!_cachedAppSch[mk].revoked)return;
   function _doGen(){
   const btn=document.getElementById('genBtn');
   btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Generowanie...';
@@ -486,25 +583,29 @@ function runGen(){
         count,tol,
       };
 
-      // W trybie 8h nie ma nocek ani weekendów — bez strategii fallback
+      // In 8h mode there are no nights or weekends — no fallback strategy
       const minPerDay=shiftMode==='8h'?(+document.getElementById('minPerDay').value||1):1;
       if(shiftMode==='8h'){
-        const deadline8=5000*Math.max(1,minPerDay); // więcej zmian = więcej czasu
+        const deadline8=5000*Math.max(1,minPerDay);
+        const allShifts=genShifts(y,m,shiftMode,minPerDay);
+        const {prefilled,remaining}=prefillReqDays(allShifts,y,m);
         let cfg1={...baseCfg,quotas:buildQuotas(y,m,shiftMode,minPerDay),_deadline:Date.now()+deadline8};
         const results1=[];
-        backtrack(genShifts(y,m,shiftMode,minPerDay),0,[],results1,count,cfg1);
+        backtrack(remaining,0,[...prefilled],results1,count,cfg1);
         schedules=results1;
       } else {
-      // Strategia: najpierw próbuj z ustawieniami weekendów takimi jak są (domyślnie 24h).
-      // Jeśli udało się znaleźć wystarczająco dużo grafików – gotowe.
-      // Jeśli nie (lub za mało) – automatycznie przełącz wszystkie weekendy na split (D+N)
-      // i wygeneruj więcej grafików żeby uzupełnić brakującą liczbę.
+      // Strategy: first try with current weekend settings (default 24h).
+      // If enough schedules found — done.
+      // If not (or too few) — auto-switch all weekends to split (D+N)
+      // and generate more schedules to fill the remaining count.
 
       const origWeModes={...weModes};
 
+      const allShifts12=genShifts(y,m,shiftMode);
+      const {prefilled:pf12,remaining:rem12}=prefillReqDays(allShifts12,y,m);
       let cfg1={...baseCfg,quotas:buildQuotas(y,m,shiftMode),_deadline:Date.now()+5000};
       const results1=[];
-      backtrack(genShifts(y,m,shiftMode),0,[],results1,count,cfg1);
+      backtrack(rem12,0,[...pf12],results1,count,cfg1);
 
       let finalResults=results1;
       let fallbackUsed=false;
@@ -516,15 +617,17 @@ function runGen(){
         weModes=splitModes;
 
         const need=count-results1.length;
+        const allShiftsFb=genShifts(y,m,shiftMode);
+        const {prefilled:pfFb,remaining:remFb}=prefillReqDays(allShiftsFb,y,m);
         let cfg2={...baseCfg,count:need+count,quotas:buildQuotas(y,m,shiftMode),_deadline:Date.now()+5000};
         const results2=[];
-        backtrack(genShifts(y,m,shiftMode),0,[],results2,cfg2.count,cfg2);
+        backtrack(remFb,0,[...pfFb],results2,cfg2.count,cfg2);
 
-        weModes=savedModes; // przywróć oryginalne
+        weModes=savedModes; // restore original
 
         if(results2.length>0){
           fallbackUsed=true;
-          // Połącz: najpierw wyniki z 24h, potem z split
+          // Merge: first results from 24h, then from split
           finalResults=[...results1,...results2].slice(0,count+results2.length);
         }
       }
@@ -557,9 +660,108 @@ function vacH(w,y,m){
   return h;
 }
 
+// ── STALE NOTICE ──────────────────────────────────────────────────
+function markStale(){
+  if(!schedules.length)return;
+  const {y,m}=ym();const mk=y+'-'+m;
+  _scheduleStale=mk;
+  renderStaleNotice();
+  // Sync to Firebase so other users see the stale notice
+  if(teamSession&&db){
+    _skipSnap=true;
+    db.collection('teams').doc(teamSession.teamId).update({['staleSchedules.'+mk]:true}).catch(()=>{_skipSnap=false;});
+  }
+}
+function clearStale(mk){
+  if(_scheduleStale===mk)_scheduleStale=null;
+  if(_cachedStaleSchedules)delete _cachedStaleSchedules[mk];
+  renderStaleNotice();
+  if(teamSession&&db){
+    _skipSnap=true;
+    db.collection('teams').doc(teamSession.teamId).update({['staleSchedules.'+mk]:firebase.firestore.FieldValue.delete()}).catch(()=>{_skipSnap=false;});
+  }
+}
+function renderStaleNotice(){
+  const el=document.getElementById('staleNotice');if(!el)return;
+  const {y,m}=ym();const mk=y+'-'+m;
+  const isStale=_scheduleStale===mk||(_cachedStaleSchedules&&_cachedStaleSchedules[mk]);
+  if(isStale&&schedules.length){
+    const regenBtn=canDo('generate')?`<button class="stale-btn" onclick="runGen()">↻ Generuj ponownie</button>`:'';
+    el.innerHTML=`<div class="stale-notice">⚠ Grafik może być nieaktualny — wprowadzono zmiany w kalendarzu${regenBtn}</div>`;
+  } else {
+    el.innerHTML='';
+  }
+}
+
+// ── PRE-FILL (worker availability — read only) ────────────────────
+function renderPreFill(){
+  const c=document.getElementById('preFillSection');if(!c)return;
+  const {y,m}=ym();
+  // Hide when approved (and not revoked)
+  const mk=y+'-'+m;
+  const ap=_cachedAppSch&&_cachedAppSch[mk];
+  if(ap&&!ap.revoked){c.innerHTML='';return;}
+
+  const DOW=['Pn','Wt','Śr','Cz','Pt','Sb','Nd'];
+  const CELL={
+    vac:{cls:'pf-vac',l:'U'},
+    off:{cls:'pf-off',l:'✕'},
+  };
+  const showDay=r=>r==='vac'||r==='off';
+  const n=dim(y,m);
+  // Active workers only
+  const ws=teamSession?workers.filter(w=>!w.disabled):workers;
+  if(!ws.length){c.innerHTML='';return;}
+
+  // Collect only days with at least one marking
+  const markedDays=[];
+  for(let d=1;d<=n;d++){
+    const date=dstr(y,m,d);
+    if(ws.some(w=>showDay(w.days[date])))markedDays.push({d,date,wd:dow(y,m,d)});
+  }
+  if(!markedDays.length){c.innerHTML='';return;}
+
+  // Header: dates
+  const dateHdrs=markedDays.map(({d,wd})=>{
+    const dowIdx=wd===0?6:wd-1;
+    const isWe=wd===0||wd===6;
+    return `<th class="${isWe?'pf-col-we':''}"><div class="pf-dnum">${d}</div><div class="pf-ddow">${DOW[dowIdx]}</div></th>`;
+  }).join('');
+
+  // Rows: workers
+  const rows=ws.map(w=>{
+    const ini=w.name.trim().split(/\s+/).map(p=>p[0]||'').join('').slice(0,2).toUpperCase()||'?';
+    const wCell=`<td class="pf-wcell"><div class="pf-av" style="background:${w.color}22;color:${w.color};border-color:${w.color}88">${ini}</div><span class="pf-wname">${w.name.split(' ')[0]}</span></td>`;
+    const cells=markedDays.map(({date,wd})=>{
+      const r=w.days[date];
+      const isWe=wd===0||wd===6;
+      const cls=isWe?'pf-col-we':'';
+      if(!r||!showDay(r))return `<td class="${cls}"></td>`;
+      const isWeVac=r==='vac'&&isWe;
+      const s=isWeVac?{cls:'pf-vac-w',l:'U'}:(CELL[r]||{cls:'',l:r});
+      return `<td class="${cls}"><span class="pf-cell ${s.cls}">${s.l}</span></td>`;
+    }).join('');
+    return `<tr>${wCell}${cells}</tr>`;
+  }).join('');
+
+  c.innerHTML=`<div class="prefill-wrap">
+    <div class="prefill-hdr">
+      <span class="prefill-title">Dostępność — ${MONTHS[m]} ${y}</span>
+      <span class="prefill-ro">tylko odczyt</span>
+    </div>
+    <div class="prefill-scroll">
+      <table class="prefill-table">
+        <thead><tr><th></th>${dateHdrs}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
 // ── RENDER ALL SCHEDULES (stacked) ────────────────────────────────
-// firstCount = ile grafików pochodzi z oryginalnych ustawień (reszta = split fallback)
+// firstCount = how many schedules come from original settings (rest = split fallback)
 function renderAll(y,m,fallbackUsed=false,firstCount=schedules.length){
+  renderPreFill();
   const mi=document.getElementById('mainInner');
   let notice='';
   if(fallbackUsed){
@@ -604,7 +806,7 @@ function renderSched(idx,y,m){
     ${revokedBadge}${modeBadge}
     <span class="sched-meta">${MONTHS[m]} ${y} · śr. ${avgH}h · odch. ${maxH-minH}h · ${sched.length} zmian</span>
     <button class="expbtn" onclick="exportXL(${y},${m},${idx})">⬇ Excel</button>
-    ${(()=>{const {y:ry,m:rm}=ym();const rmk=ry+'-'+rm;const aa=_cachedAppSch&&_cachedAppSch[rmk]&&!_cachedAppSch[rmk].revoked;return teamSession&&!aa;})()
+    ${(()=>{const {y:ry,m:rm}=ym();const rmk=ry+'-'+rm;const aa=_cachedAppSch&&_cachedAppSch[rmk]&&!_cachedAppSch[rmk].revoked;return teamSession&&!aa&&canDo('approve');})()
       ?`<button class="expbtn" style="border-color:var(--green);color:var(--green)" onclick="approveSchedule(${idx})">✓ Zatwierdź</button>`:''}
   </div>`;
 
@@ -688,6 +890,7 @@ const CELL_TYPES=[
 let _menuCtx=null;
 function openCellMenu(evt,schedIdx,wid,date){
   evt.stopPropagation();
+  if(!canDo('edit'))return;
   const menu=document.getElementById('cellMenu');
   _menuCtx={schedIdx,wid,date};
   const {y,m}=ym();
@@ -755,62 +958,62 @@ function applyCellType(type,slot){
 }
 document.addEventListener('click',()=>{document.getElementById('cellMenu').style.display='none';});
 
-// ── EXCEL EXPORT — HTML-table format (kolory działają w Excel/LibreOffice) ──
+// ── EXCEL EXPORT — HTML-table format (colors work in Excel/LibreOffice) ──
 function exportXL(y,m,onlyIdx){
   const n=dim(y,m);
 
-  // Styl komórek – font
+  // Cell style – font
   const F='font-family:Calibri,Arial,sans-serif;font-size:10px;';
   const FS='font-family:Calibri,Arial,sans-serif;font-size:9px;';
   const B='border:1px solid #808080;';
 
-  // Paleta kolorów
+  // Color palette
   const C={
-    // Nagłówek tytułowy (ciemny oliwkowy/zielony)
+    // Title header (dark olive/green)
     title:    {bg:'#4a5426',fg:'#ffffff'},
-    // Nagłówek dni - zwykłe (jasne szare/beżowe)
+    // Day header - regular (light gray/beige)
     hdrDay:   {bg:'#d9d9d9',fg:'#000000'},
-    // Nagłówek dni - sobota (czerwone tło)
+    // Day header - Saturday (red background)
     hdrSat:   {bg:'#ff0000',fg:'#ffffff'},
-    // Nagłówek dni - niedziela (czerwone tło)
+    // Day header - Sunday (red background)
     hdrSun:   {bg:'#ff0000',fg:'#ffffff'},
-    // Zmiana dzienna D
-    dzien:    {bg:'#92d050',fg:'#000000'},  // zielony
-    // Zmiana nocna N
-    noc:      {bg:'#00b0f0',fg:'#000000'},  // niebieski
+    // Day shift D
+    dzien:    {bg:'#92d050',fg:'#000000'},  // green
+    // Night shift N
+    noc:      {bg:'#00b0f0',fg:'#000000'},  // blue
     // 24h weekend
-    h24:      {bg:'#87CEEB',fg:'#000000'},  // błękitny (sky blue)
-    // Urlop Pn-Pt (żółty z "U")
+    h24:      {bg:'#87CEEB',fg:'#000000'},  // sky blue
+    // Vacation Mon-Fri (yellow with "U")
     vacWD:    {bg:'#ffff00',fg:'#000000'},
-    // Urlop Sb-Nd (żółty z "U")
+    // Vacation Sat-Sun (yellow with "U")
     vacWE:    {bg:'#ffff00',fg:'#000000'},
-    // Niedostępny / wolne niepłatne (pomarańczowy)
+    // Unavailable / unpaid leave (orange)
     off:      {bg:'#ffc000',fg:'#000000'},
-    // Chorobowe (fioletowy)
+    // Sick leave (purple)
     sick:     {bg:'#7030a0',fg:'#ffffff'},
-    // Puste komórki
+    // Empty cells
     empty:    {bg:'#ffffff',fg:'#000000'},
-    // Puste weekendowe
+    // Empty weekend cells
     emptyWE:  {bg:'#f2f2f2',fg:'#808080'},
-    // Suma
+    // Sum
     sum:      {bg:'#d9e2f3',fg:'#000000'},
-    // Wiersz pracownika - tło normalne
+    // Worker row - normal background
     plain:    {bg:'#ffffff',fg:'#000000'},
-    // Wiersz pracownika - tło naprzemienne
+    // Worker row - alternating background
     alt:      {bg:'#f2f2f2',fg:'#000000'},
-    // Wiersze podsumowań: Dniówki
+    // Summary rows: day shifts
     sumDzien: {bg:'#e2efda',fg:'#000000'},
-    // Wiersze podsumowań: Nocki
+    // Summary rows: night shifts
     sumNoc:   {bg:'#dce6f1',fg:'#000000'},
-    // SUMA kontrolna
+    // Control sum
     sumCtrl:  {bg:'#fce4d6',fg:'#000000'},
-    // SKŁAD
+    // Staffing check
     sumSklad: {bg:'#d9d9d9',fg:'#000000'},
-    // Legenda CHOROBOWE
+    // Legend: sick leave
     legSick:  {bg:'#7030a0',fg:'#ffffff'},
-    // Legenda WOLNE NIEPŁATNE
+    // Legend: unpaid leave
     legFree:  {bg:'#ffc000',fg:'#000000'},
-    // Legenda URLOP PŁATNY
+    // Legend: paid vacation
     legVac:   {bg:'#ffff00',fg:'#000000'},
   };
 
@@ -844,16 +1047,16 @@ function exportXL(y,m,onlyIdx){
     const sched=schedules[si];
     const lkp={};sched.forEach(e=>{lkp[`${e.wid}_${e.date}`]=e;});
     const ROMAN=['I','II','III'];
-    const totalCols=3+n+1; // Lp + Imię + Nazwisko + days + SUMA
+    const totalCols=3+n+1; // No. + First name + Last name + days + SUM
 
     html+=`<table>`;
 
-    // === ROW 1: Title row — "GRAFIK - MIESIĄC ROK" ===
+    // === ROW 1: Title row — "SCHEDULE - MONTH YEAR" ===
     html+=`<tr>`;
     html+=td(`GRAFIK ${si+1} — ${MONTHS[m].toUpperCase()} ${y}`,C.title.bg,C.title.fg,{colspan:totalCols,bold:true,align:'center'});
     html+=`</tr>`;
 
-    // === ROW 2: Header row — Lp. | Imię | Nazwisko | 1..31 ===
+    // === ROW 2: Header row — No. | First name | Last name | 1..31 ===
     html+=`<tr>`;
     html+=td('Lp.',C.hdrDay.bg,C.hdrDay.fg,{bold:true,width:'25px'});
     html+=td('Imię',C.hdrDay.bg,C.hdrDay.fg,{bold:true,align:'left',width:'75px'});
@@ -865,7 +1068,7 @@ function exportXL(y,m,onlyIdx){
       if(isSat||isSun){hBg=C.hdrSat.bg;hFg=C.hdrSat.fg;}
       html+=td(`${d}`,hBg,hFg,{bold:true,width:'26px'});
     }
-    html+=td('',C.hdrDay.bg,C.hdrDay.fg,{bold:true,width:'35px'}); // SUMA header empty or "SUM"
+    html+=td('',C.hdrDay.bg,C.hdrDay.fg,{bold:true,width:'35px'}); // SUM header
     html+=`</tr>`;
 
     // === Worker rows ===
@@ -927,7 +1130,7 @@ function exportXL(y,m,onlyIdx){
     // === Empty row ===
     html+=`<tr><td colspan="${totalCols}" style="height:4px;border:none;background:#fff"></td></tr>`;
 
-    // === Summary rows: Dniówki count per day ===
+    // === Summary rows: day-shift count per day ===
     {
       html+=`<tr>`;
       html+=td('',C.sumDzien.bg,C.sumDzien.fg,{width:'25px'});
@@ -947,7 +1150,7 @@ function exportXL(y,m,onlyIdx){
       html+=`</tr>`;
     }
 
-    // === Summary row: Nocki count per day ===
+    // === Summary row: night-shift count per day ===
     {
       html+=`<tr>`;
       html+=td('',C.sumNoc.bg,C.sumNoc.fg,{width:'25px'});
@@ -967,7 +1170,7 @@ function exportXL(y,m,onlyIdx){
       html+=`</tr>`;
     }
 
-    // === SUMA kontrolna (dzien+noc per day) ===
+    // === Control sum (day+night per day) ===
     {
       html+=`<tr>`;
       html+=td('',C.sumCtrl.bg,C.sumCtrl.fg,{width:'25px'});
@@ -987,7 +1190,7 @@ function exportXL(y,m,onlyIdx){
       html+=`</tr>`;
     }
 
-    // === SKŁAD row — check if each day has proper staffing ===
+    // === Staffing row — check if each day has proper staffing ===
     {
       html+=`<tr>`;
       html+=td('',C.sumSklad.bg,C.sumSklad.fg,{width:'25px'});
@@ -1131,23 +1334,122 @@ function genTeamId(){
   let id='';for(let i=0;i<8;i++)id+=c[Math.floor(Math.random()*c.length)];return id;
 }
 
-// ── LOGIN UI ─────────────────────────────────────────────────────
-function showLoginTab(tab){
-  document.getElementById('loginJoin').style.display=tab==='join'?'':'none';
-  document.getElementById('loginCreate').style.display=tab==='create'?'':'none';
-  document.querySelectorAll('.login-tab').forEach((b,i)=>{
-    b.classList.toggle('active',(tab==='join'&&i===0)||(tab==='create'&&i===1));
+// ── AUTH UI (ekran 1) ────────────────────────────────────────────
+let currentUser=null; // {login, displayName, passwordHash, teams:{}}
+
+function showAuthTab(tab){
+  document.getElementById('authLogin').style.display=tab==='login'?'':'none';
+  document.getElementById('authRegister').style.display=tab==='register'?'':'none';
+  const tabs=document.querySelectorAll('#authOverlay .login-tab');
+  tabs.forEach((b,i)=>{
+    b.classList.toggle('active',(tab==='login'&&i===0)||(tab==='register'&&i===1));
   });
 }
 
-async function doCreateTeam(){
-  const name=document.getElementById('createTeamName').value.trim();
-  const pw=document.getElementById('createPassword').value;
-  const member=document.getElementById('createName').value.trim();
-  const err=document.getElementById('createErr');
+async function doRegister(){
+  const login=document.getElementById('regUser').value.trim().toLowerCase();
+  const name=document.getElementById('regName').value.trim();
+  const pw=document.getElementById('regPass').value;
+  const pw2=document.getElementById('regPass2').value;
+  const err=document.getElementById('regErr');
+  if(!login||login.length<3||!/^[a-z0-9_]+$/.test(login)){err.textContent='Login: min 3 znaki (a-z, 0-9, _)';return;}
+  if(!name){err.textContent='Podaj wyświetlaną nazwę';return;}
+  if(pw.length<4){err.textContent='Hasło min. 4 znaki';return;}
+  if(pw!==pw2){err.textContent='Hasła się nie zgadzają';return;}
+  err.textContent='Rejestracja...';
+  try{
+    const existing=await db.collection('users').doc(login).get();
+    if(existing.exists){err.textContent='Login "'+login+'" jest już zajęty';return;}
+    const pwh=await hashPw(pw);
+    await db.collection('users').doc(login).set({
+      login,displayName:name,passwordHash:pwh,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+      teams:{}
+    });
+    currentUser={login,displayName:name,passwordHash:pwh,teams:{}};
+    localStorage.setItem('sm_user',JSON.stringify(currentUser));
+    showTeamSelect();
+  }catch(e){err.textContent='Błąd: '+e.message;}
+}
+
+async function doLogin(){
+  const login=document.getElementById('loginUser').value.trim().toLowerCase();
+  const pw=document.getElementById('loginPass').value;
+  const err=document.getElementById('loginErr');
+  if(!login){err.textContent='Podaj login';return;}
+  if(!pw){err.textContent='Podaj hasło';return;}
+  err.textContent='Logowanie...';
+  try{
+    const doc=await db.collection('users').doc(login).get();
+    if(!doc.exists){err.textContent='Użytkownik nie istnieje';return;}
+    const pwh=await hashPw(pw);
+    const data=doc.data();
+    if(data.passwordHash!==pwh){err.textContent='Błędne hasło';return;}
+    currentUser={login:data.login,displayName:data.displayName,passwordHash:pwh,teams:data.teams||{}};
+    localStorage.setItem('sm_user',JSON.stringify(currentUser));
+    showTeamSelect();
+  }catch(e){err.textContent='Błąd: '+e.message;}
+}
+
+function doLogoutUser(){
+  currentUser=null;
+  localStorage.removeItem('sm_user');
+  localStorage.removeItem('sm_team');
+  document.getElementById('teamSelectOverlay').style.display='none';
+  document.getElementById('authOverlay').style.display='';
+}
+
+// ── TEAM SELECT UI (ekran 2) ────────────────────────────────────
+function showTeamSelect(){
+  document.getElementById('authOverlay').style.display='none';
+  document.getElementById('teamSelectOverlay').style.display='';
+  document.getElementById('tsWelcome').textContent='Witaj, '+currentUser.displayName+'!';
+  document.getElementById('tsCreateForm').style.display='none';
+  document.getElementById('tsJoinForm').style.display='none';
+  renderTeamList();
+  // If URL hash contains a team ID and user is not a member yet — open join form
+  const hashTid=(window.location.hash.match(/team=([a-z0-9]+)/)||[])[1];
+  if(hashTid&&!(currentUser.teams&&currentUser.teams[hashTid])){
+    document.getElementById('tsJoinId').value=hashTid;
+    document.getElementById('tsJoinForm').style.display='';
+  }
+}
+
+function renderTeamList(){
+  const list=document.getElementById('tsTeamList');
+  const empty=document.getElementById('tsEmpty');
+  const teams=currentUser.teams||{};
+  const keys=Object.keys(teams);
+  if(!keys.length){list.innerHTML='';empty.style.display='';return;}
+  empty.style.display='none';
+  const ROLE_PL={admin:'admin',editor:'edytor',worker:'pracownik'};
+  list.innerHTML=keys.map(tid=>{
+    const t=teams[tid];
+    const role=t.role||'worker';
+    return `<div class="ts-team-item" onclick="enterTeam('${tid}')">
+      <span class="ts-team-name">${t.teamName||tid}</span>
+      <span class="ts-team-role ts-role-${role}">${ROLE_PL[role]||role}</span>
+    </div>`;
+  }).join('');
+}
+
+function showTsCreate(){
+  const f=document.getElementById('tsCreateForm');
+  f.style.display=f.style.display==='none'?'':'none';
+  document.getElementById('tsJoinForm').style.display='none';
+}
+function showTsJoin(){
+  const f=document.getElementById('tsJoinForm');
+  f.style.display=f.style.display==='none'?'':'none';
+  document.getElementById('tsCreateForm').style.display='none';
+}
+
+async function doCreateTeamNew(){
+  const name=document.getElementById('tsCreateName').value.trim();
+  const pw=document.getElementById('tsCreatePw').value;
+  const err=document.getElementById('tsCreateErr');
   if(!name){err.textContent='Podaj nazwę zespołu';return;}
   if(pw.length<4){err.textContent='Hasło min. 4 znaki';return;}
-  if(!member){err.textContent='Podaj swoje imię';return;}
   err.textContent='Tworzenie...';
   try{
     const tid=genTeamId(), pwh=await hashPw(pw);
@@ -1158,53 +1460,105 @@ async function doCreateTeam(){
       createdAt:firebase.firestore.FieldValue.serverTimestamp(),
       workers:[],weModes:{},wCtr:0,
       settings:{month:nextM.getMonth()+1,year:nextM.getFullYear()},
-      genSettings:{shiftMode:'12h',maxN:true,maxNVal:3,maxD:true,maxDVal:3,tol:24,minPerDay:1,count:1},
-      approvedSchedules:{}
+      genSettings:{shiftMode:(document.getElementById('tsCreateMode')&&document.getElementById('tsCreateMode').value)||'12h',maxN:true,maxNVal:3,maxD:true,maxDVal:3,tol:24,minPerDay:1,count:1},
+      approvedSchedules:{},
+      members:{[currentUser.login]:{displayName:currentUser.displayName,role:'admin'}}
     });
-    teamSession={teamId:tid,memberName:member,passwordHash:pwh};
-    localStorage.setItem('sm_session',JSON.stringify(teamSession));
-    window.location.hash='team='+tid;
-    showApp();
+    // Update user.teams
+    currentUser.teams[tid]={role:'admin',teamName:name};
+    await db.collection('users').doc(currentUser.login).update({['teams.'+tid]:{role:'admin',teamName:name}});
+    localStorage.setItem('sm_user',JSON.stringify(currentUser));
+    enterTeam(tid);
     toast('✓ Zespół utworzony! Udostępnij link.');
-    if(!localStorage.getItem('sm_tut_done'))showTutorial();
   }catch(e){err.textContent='Błąd: '+e.message;}
 }
 
-async function doJoinTeam(){
-  let tid=document.getElementById('joinTeamId').value.trim().toLowerCase();
-  const pw=document.getElementById('joinPassword').value;
-  const member=document.getElementById('joinName').value.trim();
-  const err=document.getElementById('joinErr');
+async function doJoinTeamNew(){
+  let tid=document.getElementById('tsJoinId').value.trim().toLowerCase();
+  const pw=document.getElementById('tsJoinPw').value;
+  const err=document.getElementById('tsJoinErr');
   if(tid.includes('#team='))tid=tid.split('#team=').pop();
   if(tid.includes('team='))tid=tid.split('team=').pop();
   if(!tid){err.textContent='Podaj ID zespołu';return;}
   if(!pw){err.textContent='Podaj hasło';return;}
-  if(!member){err.textContent='Podaj swoje imię';return;}
   err.textContent='Łączenie...';
   try{
     const doc=await db.collection('teams').doc(tid).get();
     if(!doc.exists){err.textContent='Zespół nie istnieje';return;}
     const pwh=await hashPw(pw);
     if(doc.data().passwordHash!==pwh){err.textContent='Błędne hasło';return;}
-    teamSession={teamId:tid,memberName:member,passwordHash:pwh};
-    localStorage.setItem('sm_session',JSON.stringify(teamSession));
-    window.location.hash='team='+tid;
-    showApp();
-    if(!localStorage.getItem('sm_tut_done'))showTutorial();
+    const data=doc.data();
+    const teamName=data.name||tid;
+    // Check if user is already a member
+    const members=data.members||{};
+    let role=members[currentUser.login]?members[currentUser.login].role:'worker';
+    // Legacy team without members — first user becomes admin
+    if(!data.members||!Object.keys(data.members).length){role='admin';}
+    // Add member to team
+    await db.collection('teams').doc(tid).update({
+      ['members.'+currentUser.login]:{displayName:currentUser.displayName,role}
+    });
+    // Update user.teams
+    currentUser.teams[tid]={role,teamName};
+    await db.collection('users').doc(currentUser.login).update({['teams.'+tid]:{role,teamName}});
+    localStorage.setItem('sm_user',JSON.stringify(currentUser));
+    enterTeam(tid);
   }catch(e){err.textContent='Błąd: '+e.message;}
 }
 
+async function enterTeam(tid){
+  const t=currentUser.teams[tid];
+  if(!t)return;
+  teamSession={
+    teamId:tid,
+    login:currentUser.login,
+    displayName:currentUser.displayName,
+    role:t.role||'worker',
+    passwordHash:null // not needed — auth is per user
+  };
+  // Fetch team passwordHash + auto-add user as worker
+  try{
+    const doc=await db.collection('teams').doc(tid).get();
+    if(doc.exists){
+      teamSession.passwordHash=doc.data().passwordHash;
+      const existing=doc.data().workers||[];
+      if(!existing.some(w=>w.login===currentUser.login)){
+        const color=COLORS[existing.length%COLORS.length];
+        const nid=doc.data().wCtr!=null?doc.data().wCtr:existing.length;
+        const newW={id:nid,name:currentUser.displayName,color,days:{},minDays:0,reqDays:[],login:currentUser.login,disabled:false};
+        await db.collection('teams').doc(tid).update({workers:[...existing,newW],wCtr:nid+1});
+      }
+    }
+  }catch(e){}
+  localStorage.setItem('sm_team',JSON.stringify({teamId:tid,role:t.role}));
+  window.location.hash='team='+tid;
+  showApp();
+  if(!localStorage.getItem('sm_tut_done'))showTutorial();
+}
+
+// ── LOGOUT / SWITCH TEAM ────────────────────────────────────────
 function doLogout(){
   if(unsubscribe){unsubscribe();unsubscribe=null;}
   teamSession=null;
-  localStorage.removeItem('sm_session');
+  localStorage.removeItem('sm_team');
   window.location.hash='';
   workers=[];schedules=[];weModes={};wCtr=0;
-  document.getElementById('loginOverlay').style.display='';
   document.getElementById('teamBar').style.display='none';
   document.getElementById('approvedBanner').innerHTML='';
-  document.getElementById('mainInner').innerHTML='<div class="empty"><div class="empty-icon">📅</div><h2>Brak grafiku</h2><p>Zaloguj się do zespołu aby rozpocząć.</p></div>';
+  document.getElementById('mainInner').innerHTML='';
   document.getElementById('wlist').innerHTML='';
+  document.getElementById('tabMembers').style.display='none';
+  // Return to team selection screen
+  if(currentUser){
+    // Refresh user's team list from Firestore
+    db.collection('users').doc(currentUser.login).get().then(doc=>{
+      if(doc.exists)currentUser.teams=doc.data().teams||{};
+      localStorage.setItem('sm_user',JSON.stringify(currentUser));
+      showTeamSelect();
+    }).catch(()=>showTeamSelect());
+  } else {
+    document.getElementById('authOverlay').style.display='';
+  }
 }
 
 function copyTeamLink(){
@@ -1214,9 +1568,11 @@ function copyTeamLink(){
 }
 
 function startLocalMode(){
-  document.getElementById('loginOverlay').style.display='none';
-  // Pokaż pasek trybu lokalnego tylko gdy Firebase jest dostępny (jest do czego wracać)
+  document.getElementById('authOverlay').style.display='none';
+  document.getElementById('teamSelectOverlay').style.display='none';
   if(db)document.getElementById('localBar').style.display='';
+  const cb=document.getElementById('clearBtn');if(cb)cb.style.display='';
+  const lb=document.getElementById('loadBtn');if(lb)lb.style.display='';
   ['Anna','Bartosz','Celina','Dawid'].forEach(n=>addW(n));
   buildWeModes();renderWEGrid();
   if(!localStorage.getItem('sm_tut_done'))showTutorial();
@@ -1225,23 +1581,161 @@ function startLocalMode(){
 function returnToLogin(){
   workers=[];schedules=[];weModes={};wCtr=0;
   document.getElementById('localBar').style.display='none';
+  const cb2=document.getElementById('clearBtn');if(cb2)cb2.style.display='none';
+  const lb2=document.getElementById('loadBtn');if(lb2)lb2.style.display='none';
   document.getElementById('approvedBanner').innerHTML='';
   document.getElementById('mainInner').innerHTML='<div class="empty"><div class="empty-icon">📅</div><h2>Brak grafiku</h2><p>Skonfiguruj pracowników, oznacz urlopy i kliknij „Generuj Grafik"</p></div>';
   document.getElementById('wlist').innerHTML='';
-  document.getElementById('loginOverlay').style.display='';
+  if(currentUser){showTeamSelect();}
+  else{document.getElementById('authOverlay').style.display='';}
   buildWeModes();renderWEGrid();
+}
+
+// ── ROLES / PERMISSIONS ─────────────────────────────────────────
+function canDo(action){
+  if(!teamSession)return true; // local mode = full access
+  const role=teamSession.role||'worker';
+  const perms={
+    admin:  ['generate','edit','approve','revoke','manage_members','manage_workers','export'],
+    editor: ['generate','edit','manage_workers','export'],
+    worker: ['view','export']
+  };
+  return perms[role]&&perms[role].includes(action);
+}
+// Whether the current user can edit this worker's data
+function canEditWorker(w){
+  if(!teamSession)return true; // local mode — full access
+  if(teamSession.role==='admin'||teamSession.role==='editor')return true; // admin and editor edit everyone
+  return w.login===teamSession.login; // worker — own entry only
+}
+
+function shiftModeStartEdit(){
+  // Admin clicks ✎ → shows select instead of text
+  const smSel=document.getElementById('selShiftMode');
+  const smDisp=document.getElementById('shiftModeDisp');
+  const smChg=document.getElementById('shiftModeChgBtn');
+  if(smSel)smSel.style.display='';
+  if(smDisp)smDisp.style.display='none';
+  if(smChg)smChg.style.display='none';
+  // On value change: autoSave will persist the new mode to Firestore
+}
+
+function applyRoleUI(){
+  // Generate button
+  const genBtn=document.getElementById('genBtn');
+  if(genBtn&&teamSession){
+    if(!canDo('generate')){genBtn.style.display='none';}
+  }
+  // Add worker button — admin only
+  const addBtn=document.querySelector('.addwbtn');
+  if(addBtn)addBtn.style.display=(!teamSession||teamSession.role==='admin')?'':'none';
+  // Options tab — admin and editor only
+  const tabOpts=document.getElementById('tabOptions');
+  if(tabOpts&&teamSession)tabOpts.style.display=canDo('generate')?'':'none';
+  // Members tab
+  const tabM=document.getElementById('tabMembers');
+  if(tabM)tabM.style.display=(teamSession&&canDo('manage_members'))?'':'none';
+  // Role badge in team bar
+  const rd=document.getElementById('teamRoleDisp');
+  if(rd&&teamSession){
+    const ROLE_PL={admin:'admin',editor:'edytor',worker:'pracownik'};
+    const r=teamSession.role||'worker';
+    rd.textContent=ROLE_PL[r];
+    rd.className='trole ts-role-'+r;
+  }
+  // Shift mode: in team mode show as text, admin can change it
+  const smSel=document.getElementById('selShiftMode');
+  const smDisp=document.getElementById('shiftModeDisp');
+  const smChg=document.getElementById('shiftModeChgBtn');
+  if(teamSession){
+    if(smSel)smSel.style.display='none';
+    if(smDisp)smDisp.style.display='';
+    if(smChg)smChg.style.display=canDo('manage_members')?'':'none';
+  } else {
+    if(smSel)smSel.style.display='';
+    if(smDisp)smDisp.style.display='none';
+    if(smChg)smChg.style.display='none';
+  }
+}
+
+// ── MEMBERS PANEL (admin) ───────────────────────────────────────
+async function renderMembers(){
+  const list=document.getElementById('membersList');
+  if(!list||!teamSession||!db)return;
+  try{
+    const doc=await db.collection('teams').doc(teamSession.teamId).get();
+    if(!doc.exists)return;
+    const members=doc.data().members||{};
+    const keys=Object.keys(members);
+    if(!keys.length){list.innerHTML='<div style="font-size:11px;color:var(--muted)">Brak członków</div>';return;}
+    const isAdmin=canDo('manage_members');
+    list.innerHTML=keys.map(login=>{
+      const m=members[login];
+      const isSelf=login===currentUser.login;
+      let roleHtml;
+      if(isAdmin&&!isSelf){
+        roleHtml=`<select class="member-role-sel" onchange="changeMemberRole('${login}',this.value)">
+          <option value="admin"${m.role==='admin'?' selected':''}>Admin</option>
+          <option value="editor"${m.role==='editor'?' selected':''}>Edytor</option>
+          <option value="worker"${m.role==='worker'||!m.role?' selected':''}>Pracownik</option>
+        </select>`;
+      }else{
+        const ROLE_PL={admin:'admin',editor:'edytor',worker:'pracownik'};
+        roleHtml=`<span class="ts-team-role ts-role-${m.role||'worker'}">${ROLE_PL[m.role||'worker']}</span>`;
+      }
+      const delHtml=isAdmin&&!isSelf?`<button class="member-del" onclick="removeMember('${login}')" title="Usuń z zespołu">✕</button>`:'';
+      return `<div class="member-card">
+        <span class="member-name">${m.displayName||login}${isSelf?' (ty)':''}</span>
+        ${roleHtml}${delHtml}
+      </div>`;
+    }).join('');
+  }catch(e){console.error('renderMembers error:',e);}
+}
+
+async function changeMemberRole(login,newRole){
+  if(!teamSession||!db||!canDo('manage_members'))return;
+  try{
+    // Update team.members
+    await db.collection('teams').doc(teamSession.teamId).update({
+      ['members.'+login+'.role']:newRole
+    });
+    // Update user.teams
+    await db.collection('users').doc(login).update({
+      ['teams.'+teamSession.teamId+'.role']:newRole
+    });
+    toast('✓ Rola zmieniona');
+    renderMembers();
+  }catch(e){toast('✗ Błąd: '+e.message);}
+}
+
+async function removeMember(login){
+  if(!teamSession||!db||!canDo('manage_members'))return;
+  if(!confirm('Usunąć '+login+' z zespołu?'))return;
+  try{
+    await db.collection('teams').doc(teamSession.teamId).update({
+      ['members.'+login]:firebase.firestore.FieldValue.delete()
+    });
+    await db.collection('users').doc(login).update({
+      ['teams.'+teamSession.teamId]:firebase.firestore.FieldValue.delete()
+    });
+    toast('✓ Członek usunięty');
+    renderMembers();
+  }catch(e){toast('✗ Błąd: '+e.message);}
 }
 
 // ── APP SHOW ─────────────────────────────────────────────────────
 function showApp(){
-  document.getElementById('loginOverlay').style.display='none';
+  document.getElementById('authOverlay').style.display='none';
+  document.getElementById('teamSelectOverlay').style.display='none';
   const tb=document.getElementById('teamBar');tb.style.display='';
   document.getElementById('teamNameDisp').textContent='';
-  document.getElementById('teamMemberDisp').textContent='👤 '+teamSession.memberName;
+  document.getElementById('teamMemberDisp').textContent='👤 '+(teamSession.displayName||teamSession.login);
+  applyRoleUI();
   const asVal=localStorage.getItem('sm_autosave');
   if(asVal==='0'){const cb=document.getElementById('chkAutoSave');if(cb)cb.checked=false;}
   loadTeamData();
   startRealtimeSync();
+  if(canDo('manage_members'))renderMembers();
 }
 
 // ── FIRESTORE SYNC ───────────────────────────────────────────────
@@ -1265,8 +1759,9 @@ function applyTeamData(d){
   _cachedPendSch=d.pendingSchedules||null;
   _cachedSchedMeta=d.schedMeta||null;
   _cachedHistory=d.scheduleHistory||null;
+  _cachedStaleSchedules=d.staleSchedules||null;
   if(d.workers){
-    workers=d.workers.map(w=>({...w,_open:false,days:w.days||{},minDays:w.minDays||(w.minDays2?2:0)}));
+    workers=d.workers.map(w=>({...w,_open:false,days:w.days||{},minDays:w.minDays||0,reqDays:w.reqDays||[]}));
     workers.forEach(w=>{cmode[w.id]=cmode[w.id]||'vac';});
   }
   wCtr=d.wCtr||workers.length;
@@ -1274,6 +1769,7 @@ function applyTeamData(d){
   if(d.genSettings){
     const g=d.genSettings;
     const sm=document.getElementById('selShiftMode');if(sm)sm.value=g.shiftMode||'12h';
+    const smd=document.getElementById('shiftModeDisp');if(smd)smd.textContent=(g.shiftMode==='8h')?'8h':'12/24h';
     const chkN=document.getElementById('chkN');if(chkN)chkN.checked=g.maxN!==false;
     const mnv=document.getElementById('maxNVal');if(mnv)mnv.value=g.maxNVal||3;
     const chkD=document.getElementById('chkD');if(chkD)chkD.checked=g.maxD!==false;
@@ -1308,6 +1804,8 @@ function applyTeamData(d){
     }
   }
   renderApprovedBanner(d.approvedSchedules);
+  renderPreFill();
+  renderStaleNotice();
 }
 
 async function saveToFirestore(){
@@ -1318,7 +1816,7 @@ async function saveToFirestore(){
   try{
     const {y,m}=ym();const mk=y+'-'+m;
     const upd={
-      workers:workers.map(w=>({id:w.id,name:w.name,color:w.color,days:w.days||{},minDays:w.minDays||0})),
+      workers:workers.map(w=>({id:w.id||null,name:w.name||null,color:w.color||null,days:w.days||{},minDays:w.minDays||0,reqDays:w.reqDays||[],login:w.login||null,disabled:!!w.disabled})),
       wCtr,weModes,settings:{month:m,year:y},
       genSettings:{
         shiftMode:document.getElementById('selShiftMode').value,
@@ -1337,7 +1835,7 @@ async function saveToFirestore(){
       upd['pendingSchedules.'+mk]=schedules.map(s=>({shifts:s}));
       upd['schedMeta.'+mk]=window._schedMeta||null;
     }
-    await db.collection('teams').doc(teamSession.teamId).update(upd);
+    await db.collection('teams').doc(teamSession.teamId).update(JSON.parse(JSON.stringify(upd)));
     if(schedules.length&&!_approvedViewActive){
       if(!_cachedPendSch)_cachedPendSch={};
       _cachedPendSch[mk]=schedules.map(s=>({shifts:s}));
@@ -1382,14 +1880,19 @@ async function approveSchedule(idx){
     const chk=await db.collection('teams').doc(teamSession.teamId).get();
     if(chk.exists){
       const ap=(chk.data().approvedSchedules||{})[mk];
-      if(ap&&!ap.revoked&&ap.approvedBy!==teamSession.memberName){
-        alert(`⚠ Grafik ${MONTHS[m]} ${y} jest już zatwierdzony przez ${ap.approvedBy}.\nTylko ta osoba może cofnąć lub zastąpić zatwierdzenie.`);
-        return;
+      if(ap){
+        const approverLogin=ap.approvedByLogin||null;
+        const canRevoke=canDo('revoke')||(approverLogin&&approverLogin===teamSession.login);
+        if(!ap.revoked&&!canRevoke){
+          alert(`⚠ Grafik ${MONTHS[m]} ${y} jest już zatwierdzony przez ${ap.approvedBy}.\nTylko admin lub ta osoba może cofnąć zatwierdzenie.`);
+          return;
+        }
       }
     }
   }catch(e){console.error(e);}
   if(!confirm('Zatwierdź ten grafik? Będzie widoczny dla całego zespołu.'))return;
   const sched=schedules[idx];
+  if(!sched){toast('✗ Brak grafiku do zatwierdzenia');return;}
   const ss=document.getElementById('syncStatus');
   ss.textContent='⟳ Zatwierdzanie...';
   try{
@@ -1397,23 +1900,26 @@ async function approveSchedule(idx){
     const data=doc.data();
     const prevAp=(data.approvedSchedules||{})[mk];
     const history=(data.scheduleHistory&&data.scheduleHistory[mk])||[];
-    // Jeśli istnieje poprzednia wersja, przenieś ją do historii
-    if(prevAp){history.push({...prevAp});}
+    // If a previous version exists, move it to history
+    if(prevAp){history.push(JSON.parse(JSON.stringify(prevAp)));}
     const ver=history.length+1;
     const upd={};
     upd['approvedSchedules.'+mk]={
       data:sched,version:ver,
-      approvedBy:teamSession.memberName,
+      approvedBy:teamSession.displayName||teamSession.login||'unknown',
+      approvedByLogin:teamSession.login||null,
       approvedAt:new Date().toISOString(),
-      workers:workers.map(w=>({id:w.id,name:w.name,color:w.color,days:w.days||{},minDays:w.minDays||0})),
+      workers:workers.map(w=>({id:w.id||null,name:w.name||null,color:w.color||null,days:w.days||{},minDays:w.minDays||0,reqDays:w.reqDays||[]})),
       weModes:{...weModes},month:m,year:y
     };
     upd['scheduleHistory.'+mk]=history;
     upd['pendingSchedules.'+mk]=null;upd['schedMeta.'+mk]=null;
-    await db.collection('teams').doc(teamSession.teamId).update(upd);
+    const cleanUpd=JSON.parse(JSON.stringify(upd));
+    cleanUpd['staleSchedules.'+mk]=firebase.firestore.FieldValue.delete();
+    await db.collection('teams').doc(teamSession.teamId).update(cleanUpd);
     toast(`✓ Grafik zatwierdzony (v${ver})!`);
     ss.textContent='✓ Zatwierdzono';
-    schedules=[];
+    schedules=[];_scheduleStale=null;renderStaleNotice();
     document.getElementById('mainInner').innerHTML='<div class="empty" style="opacity:.75"><div class="empty-icon">✅</div><h2>Grafik zatwierdzony</h2><p>Kliknij „Pokaż" w banerze powyżej aby wyświetlić lub edytować zatwierdzony grafik.</p></div>';
     loadTeamData();
   }catch(e){ss.textContent='✗ Błąd';console.error(e);}
@@ -1428,12 +1934,13 @@ async function removeApproval(mk){
     const ver=ap&&ap.version||1;
     const upd={};
     upd['approvedSchedules.'+mk+'.revoked']=true;
-    upd['approvedSchedules.'+mk+'.revokedBy']=teamSession.memberName;
+    upd['approvedSchedules.'+mk+'.revokedBy']=teamSession.displayName||teamSession.login||'unknown';
+    upd['approvedSchedules.'+mk+'.revokedByLogin']=teamSession.login||null;
     upd['approvedSchedules.'+mk+'.revokedAt']=new Date().toISOString();
     if(ap&&ap.data){
       upd['pendingSchedules.'+mk]=[{shifts:ap.data}];
     }
-    await db.collection('teams').doc(teamSession.teamId).update(upd);
+    await db.collection('teams').doc(teamSession.teamId).update(JSON.parse(JSON.stringify(upd)));
     _hideApprovedSchedule();
     toast(`✓ Zatwierdzenie v${ver} cofnięte (grafik przywrócony)`);loadTeamData();
   }catch(e){console.error(e);}
@@ -1444,16 +1951,14 @@ function updateGenBtn(){
   if(!btn)return;
   const {y,m}=ym();const mk=y+'-'+m;
   const wasApproved=_cachedAppSch&&_cachedAppSch[mk];
-  btn.disabled=!!wasApproved;
-  btn.title=wasApproved
-    ?wasApproved.revoked
-      ?`Grafik ${MONTHS[m]} ${y} był już zatwierdzony — generowanie nowego grafiku jest zablokowane.`
-      :`Grafik ${MONTHS[m]} ${y} jest zatwierdzony — generowanie nowego grafiku jest zablokowane.`
-    :'';
+  const isLocked=wasApproved&&!wasApproved.revoked;
+  btn.disabled=!!isLocked;
+  btn.title=isLocked?`Grafik ${MONTHS[m]} ${y} jest zatwierdzony — generowanie nowego grafiku jest zablokowane.`:'';
 }
 
 function renderApprovedBanner(appSch){
   updateGenBtn();
+  renderPreFill();
   const c=document.getElementById('approvedBanner');
   if(!c)return;
   if(!appSch||!Object.keys(appSch).length){c.innerHTML='';return;}
@@ -1479,7 +1984,7 @@ function renderApprovedBanner(appSch){
     </div>`;
   } else {
     const dt=new Date(ap.approvedAt);
-    const isApprover=teamSession&&teamSession.memberName===ap.approvedBy;
+    const isApprover=teamSession&&(canDo('revoke')||(ap.approvedByLogin&&ap.approvedByLogin===teamSession.login));
     html+=`<div class="ap-banner">
       <div class="ab-icon">✅</div>
       <div class="ab-text">
@@ -1492,7 +1997,7 @@ function renderApprovedBanner(appSch){
     </div>`;
   }
 
-  // Starsze wersje z historii
+  // Older versions from history
   history.slice().reverse().forEach((h,i)=>{
     const hVer=h.version||history.length-i;
     const hIdx=history.length-1-i;
@@ -1627,7 +2132,7 @@ function exportApprovedXL(mk){
     const ap=doc.data().approvedSchedules?.[mk];
     if(!ap)return;
     const _w=workers,_s=schedules,_we=weModes,_wc=wCtr;
-    workers=ap.workers.map(w=>({...w,_open:false,days:w.days||{},minDays:w.minDays||(w.minDays2?2:0)}));
+    workers=ap.workers.map(w=>({...w,_open:false,days:w.days||{},minDays:w.minDays||0,reqDays:w.reqDays||[]}));
     weModes=ap.weModes||{};wCtr=Math.max(...workers.map(w=>w.id),0)+1;
     schedules=[ap.data];
     exportXL(ap.year,ap.month,0);
@@ -1641,23 +2146,25 @@ function exportApprovedXL(mk){
 
 const TUT_STEPS=[
   {icon:'👋',title:'Witaj w ShiftMaster!',
-   desc:'ShiftMaster to generator grafików zmianowych dla zespołów. Każdy członek zespołu może wpisywać swoje preferencje, a lider zatwierdza gotowy grafik.\n\nTen tutorial przeprowadzi Cię przez wszystkie funkcje.'},
-  {icon:'👥',title:'1. Utwórz lub dołącz do zespołu',
-   desc:'<b>Lider zespołu</b> tworzy zespół podając nazwę i hasło, a następnie udostępnia wygenerowany link współpracownikom.\n\n<b>Członek zespołu</b> otwiera link, wpisuje hasło i swoje imię. Wszystkie zmiany synchronizują się w czasie rzeczywistym.\n\nMożesz też pracować <b>lokalnie</b> bez zespołu.'},
-  {icon:'➕',title:'2. Dodaj pracowników',
-   desc:'W panelu bocznym „Pracownicy" kliknij <b>+ Dodaj pracownika</b>.\n\nDla każdego pracownika możesz:\n• Zmienić imię (kliknij w pole nazwy)\n• Włączyć opcję <b>„Min. 2 dni w biurze"</b> — algorytm przydzieli co najmniej 2 dniówki Pn-Pt tygodniowo\n• Usunąć pracownika przyciskiem ×'},
-  {icon:'📅',title:'3. Ustaw dostępność',
-   desc:'Rozwiń kartę pracownika strzałką ▾. Zobaczysz mini-kalendarz.\n\nWybierz tryb oznaczania:\n• <b style="color:var(--purple)">🏖 Urlop</b> — Pn-Pt liczy +8h, weekend 0h\n• <b style="color:var(--gray)">🚫 Niedostępny</b> — brak zmian tego dnia\n• <b style="color:var(--yellow)">☽ Tylko noc</b> — blokada dniówki\n• <b style="color:var(--orange)">☀ Tylko dzień</b> — blokada nocki\n• <b>✕ Wyczyść</b> — usuwa oznaczenie\n\nKliknij dni w kalendarzu aby je oznaczyć.'},
-  {icon:'📆',title:'4. Skonfiguruj weekendy',
-   desc:'Przejdź do zakładki <b>📅 Weekendy</b> w panelu bocznym.\n\nDla każdego weekendu wybierz tryb:\n• <b style="color:#1a7fa8">24h</b> — jedna zmiana całodobowa\n• <b style="color:var(--green)">D+N</b> — dwie zmiany po 12h (dzień + noc)\n• <b>Wolny</b> — brak zmian w ten weekend'},
-  {icon:'⚡',title:'5. Generuj grafik',
-   desc:'Kliknij przycisk <b>„⚡ Generuj Grafik"</b> na dole panelu.\n\nW zakładce <b>⚙ Opcje</b> możesz ustawić:\n• Max 3 nocki/dniówki z rzędu\n• Liczbę wariantów grafiku (1-10)\n• Tolerancję odchylenia godzin\n\nAlgorytm wygeneruje optymalne grafiki z wyrównanymi godzinami.'},
-  {icon:'✏️',title:'6. Edytuj ręcznie',
-   desc:'Po wygenerowaniu kliknij <b>dowolną komórkę</b> w tabeli grafiku aby zmienić typ zmiany:\n• D — Dniówka 12h\n• N — Nocka 12h\n• 24h — Weekend całodobowy\n• U — Urlop\n• — — Niedostępny\n• (puste) — brak przypisania'},
-  {icon:'✅',title:'7. Zatwierdź grafik',
-   desc:'Gdy grafik jest gotowy, kliknij przycisk <b>„✓ Zatwierdź"</b> przy wybranym wariancie.\n\nZatwierdzony grafik:\n• Wyświetla się jako <b style="color:var(--green)">zielony baner</b> na górze strony\n• Jest widoczny dla <b>całego zespołu</b>\n• Można go pobrać jako Excel\n• Można cofnąć zatwierdzenie w razie potrzeby'},
-  {icon:'📊',title:'8. Eksportuj do Excel',
-   desc:'Kliknij <b>„⬇ Excel"</b> przy dowolnym grafiku lub <b>„⬇ Eksportuj wszystkie"</b> na górze.\n\nPlik .xls otwiera się w Excel/LibreOffice z kolorami komórek, podsumowaniami i kontrolą obsady.\n\n<b style="color:var(--acc)">Gotowe! Powodzenia z grafikami! 🎉</b>'}
+   desc:'ShiftMaster to generator grafików zmianowych dla zespołów. Każdy członek wpisuje swoje urlopy i nieobecności, a lider generuje i zatwierdza gotowy grafik.\n\nTen tutorial przeprowadzi Cię przez wszystkie funkcje aplikacji.'},
+  {icon:'🔐',title:'1. Konto użytkownika',
+   desc:'Przy pierwszym uruchomieniu zarejestruj się podając:\n• <b>Login</b> — unikalny identyfikator (małe litery, cyfry, _)\n• <b>Wyświetlana nazwa</b> — imię i nazwisko widoczne w zespole\n• <b>Hasło</b> — min. 4 znaki\n\nPrzy kolejnych wejściach wystarczy login i hasło. Sesja jest zapamiętywana w przeglądarce.\n\nMożesz też kliknąć <b>„Tryb lokalny"</b> — dane zapisują się tylko u Ciebie.'},
+  {icon:'👥',title:'2. Zespół — tworzenie i dołączanie',
+   desc:'Po zalogowaniu wybierasz zespół:\n\n<b>Utwórz zespół</b> (zostajesz adminem) — podaj nazwę, hasło i tryb zmian (12/24h lub 8h biurowy). Udostępnij link 📋 współpracownikom.\n\n<b>Dołącz do zespołu</b> — wklej link lub ID zespołu i podaj hasło. Zostajesz automatycznie dodany do listy pracowników jako wpis w grafiku.\n\nOtwierając link zaproszenia po raz pierwszy, formularz dołączenia wypełni się automatycznie.'},
+  {icon:'👑',title:'3. Role i uprawnienia',
+   desc:'W zespole obowiązują trzy role:\n\n• <b style="color:var(--acc)">Admin</b> — pełny dostęp: dodaje/usuwa pracowników, generuje, zatwierdza, zarządza członkami i rolami\n• <b style="color:var(--green)">Edytor</b> — generuje grafik, edytuje dostępność wszystkich pracowników\n• <b style="color:var(--muted)">Pracownik</b> — wpisuje urlopy i nieobecności <b>tylko na swoim</b> wpisie, nie może generować\n\nAdmin zmienia role w zakładce <b>👑 Członkowie</b>.'},
+  {icon:'📅',title:'4. Ustaw dostępność',
+   desc:'W zakładce <b>👥 Pracownicy</b> rozwiń swoją kartę strzałką ▾.\n\nWybierz tryb oznaczania i klikaj dni kalendarza:\n• <b style="color:var(--purple)">🏖 Urlop</b> — Pn–Pt liczy +8h, weekend 0h\n• <b style="color:var(--gray)">🚫 Niedostępny</b> — brak zmian tego dnia\n• <b style="color:var(--yellow)">🌙 Bez dniówki</b> — dostaje tylko nocki\n• <b style="color:var(--orange)">☀ Bez nocki</b> — dostaje tylko dniówki\n• <b>✕ Wyczyść</b> — usuwa oznaczenie\n\nUrlopy i nieobecności wszystkich widoczne są w panelu <b>Dostępność</b> nad grafikiem.'},
+  {icon:'⚙',title:'5. Opcje i tryb weekendów',
+   desc:'Zakładka <b>⚙ Opcje</b> (widoczna dla admina i edytora) zawiera:\n\n<b>Tryb weekendów</b> — dla każdego weekendu:\n• <b style="color:#1a7fa8">24h</b> — jedna zmiana całodobowa\n• <b style="color:var(--green)">D+N</b> — dzień + noc po 12h\n• <b>Wolny</b> — brak zmian\n\n<b>Ustawienia generatora</b> — max nocki/dniówki z rzędu, liczba wariantów (1–10), tolerancja godzin.\n\n<b>Tryb zmian</b> ustawia się przy tworzeniu zespołu (12/24h lub 8h biurowy).'},
+  {icon:'⚡',title:'6. Generuj grafik',
+   desc:'Kliknij <b>„⚡ Generuj Grafik"</b> na dole panelu (admin lub edytor).\n\nAlgorytm automatycznie:\n• Uwzględnia urlopy i nieobecności\n• Wyrównuje godziny między pracownikami\n• Generuje kilka wariantów do wyboru\n\nJeśli po wygenerowaniu zmienisz dostępność kogoś z pracowników, pojawi się ostrzeżenie <b>⚠ Grafik może być nieaktualny</b> z przyciskiem szybkiego generowania.\n\nWyłączony pracownik (◉/⊘) nie jest uwzględniany w generowaniu.'},
+  {icon:'✏️',title:'7. Edytuj ręcznie',
+   desc:'Po wygenerowaniu kliknij <b>dowolną komórkę</b> w tabeli grafiku aby zmienić typ zmiany:\n• <b>D</b> — Dniówka 12h\n• <b>N</b> — Nocka 12h\n• <b>24h</b> — zmiana całodobowa\n• <b>U</b> — Urlop (+8h)\n• <b>—</b> — Niedostępny (0h)\n• (puste) — brak przypisania\n\nEdycja dostępna dla admina i edytora.'},
+  {icon:'✅',title:'8. Zatwierdź grafik',
+   desc:'Gdy grafik jest gotowy, kliknij <b>„✓ Zatwierdź"</b> przy wybranym wariancie (admin lub osoba która zatwierdziła).\n\nZatwierdzony grafik:\n• Wyświetla baner <b style="color:var(--green)">✅ Zatwierdzone</b> widoczny dla całego zespołu\n• Blokuje generowanie nowego do czasu cofnięcia\n• Można pobrać jako Excel\n• Można cofnąć przyciskiem <b>✕ Cofnij</b>'},
+  {icon:'📊',title:'9. Eksportuj do Excel',
+   desc:'Kliknij <b>„⬇ Excel"</b> przy dowolnym grafiku lub <b>„⬇ Eksportuj wszystkie"</b> na górze.\n\nPlik .xls zawiera kolorowe komórki, podsumowania godzin i kontrolę obsady na każdy dzień.\n\n<b style="color:var(--acc)">Gotowe! Powodzenia z grafikami! 🎉</b>\n\nW razie pytań lub błędów — kliknij <b>✉ Kontakt</b> w nagłówku.'}
 ];
 let _tutStep=0;
 
@@ -1713,38 +2220,65 @@ async function init(){
   // Firebase init
   const fbOk=initFirebase();
   if(!fbOk){
-    // Firebase nie skonfigurowany — tryb lokalny
-    document.getElementById('loginOverlay').style.display='none';
+    // Firebase not configured — local mode
+    document.getElementById('authOverlay').style.display='none';
     ['Anna','Bartosz','Celina','Dawid'].forEach(n=>addW(n));
     buildWeModes();renderWEGrid();
     if(!localStorage.getItem('sm_tut_done'))showTutorial();
     return;
   }
 
-  // Sprawdź istniejącą sesję
-  const ss=localStorage.getItem('sm_session');
   const hashTid=(window.location.hash.match(/team=([a-z0-9]+)/)||[])[1];
-  if(ss){
+
+  // 1. Check user session (sm_user)
+  const userRaw=localStorage.getItem('sm_user');
+  if(userRaw){
     try{
-      teamSession=JSON.parse(ss);
-      const doc=await db.collection('teams').doc(teamSession.teamId).get();
-      if(doc.exists&&doc.data().passwordHash===teamSession.passwordHash){
-        if(hashTid&&hashTid!==teamSession.teamId){
-          // Inny zespół w URL
-          document.getElementById('joinTeamId').value=hashTid;
-          teamSession=null;localStorage.removeItem('sm_session');
-        } else {
-          window.location.hash='team='+teamSession.teamId;
-          showApp();return;
-        }
-      } else {teamSession=null;localStorage.removeItem('sm_session');}
-    }catch(e){teamSession=null;localStorage.removeItem('sm_session');}
+      currentUser=JSON.parse(userRaw);
+      // Validate user in Firestore
+      const uDoc=await db.collection('users').doc(currentUser.login).get();
+      if(uDoc.exists&&uDoc.data().passwordHash===currentUser.passwordHash){
+        currentUser.teams=uDoc.data().teams||{};
+        localStorage.setItem('sm_user',JSON.stringify(currentUser));
+      } else {
+        currentUser=null;localStorage.removeItem('sm_user');localStorage.removeItem('sm_team');
+      }
+    }catch(e){currentUser=null;localStorage.removeItem('sm_user');localStorage.removeItem('sm_team');}
   }
 
-  // Sprawdź hash URL
-  if(hashTid)document.getElementById('joinTeamId').value=hashTid;
+  // 2. If user is logged in — check active team (sm_team)
+  if(currentUser){
+    const teamRaw=localStorage.getItem('sm_team');
+    if(teamRaw){
+      try{
+        const ts=JSON.parse(teamRaw);
+        const tid=ts.teamId;
+        // Check if user is still a member of this team
+        if(currentUser.teams[tid]){
+          // If URL points to a different team — enter that one
+          if(hashTid&&hashTid!==tid&&currentUser.teams[hashTid]){
+            await enterTeam(hashTid);return;
+          }
+          await enterTeam(tid);return;
+        }
+      }catch(e){}
+      localStorage.removeItem('sm_team');
+    }
 
-  // Pokaż login
+    showTeamSelect();
+  } else {
+    // No user session — show auth overlay
+  }
+
+  // Backwards compatibility: old sm_session
+  if(!currentUser){
+    const oldSs=localStorage.getItem('sm_session');
+    if(oldSs){
+      // Old session — clear and show auth overlay
+      localStorage.removeItem('sm_session');
+    }
+  }
+
   buildWeModes();renderWEGrid();
 }
 init();
