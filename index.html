@@ -236,6 +236,19 @@
 
 <div id="cellMenu" class="cell-menu" style="display:none"></div>
 
+<div id="delTeamModal" class="del-team-modal-bg" style="display:none" onclick="if(event.target===this)closeDelTeamModal()">
+  <div class="del-team-modal">
+    <div class="del-team-icon">🗑</div>
+    <h3 class="del-team-title">Usuń zespół</h3>
+    <p class="del-team-msg">Czy na pewno chcesz usunąć zespół<br><strong id="delTeamName"></strong>?<br><span style="font-size:11px;color:var(--muted)">Tej operacji nie można cofnąć. Wszyscy członkowie stracą dostęp.</span></p>
+    <div class="login-err" id="delTeamErr" style="margin-bottom:8px"></div>
+    <div class="del-team-btns">
+      <button id="delTeamConfirmBtn" class="del-team-confirm" onclick="confirmDeleteTeam()">Tak, usuń</button>
+      <button class="del-team-cancel" onclick="closeDelTeamModal()">Anuluj</button>
+    </div>
+  </div>
+</div>
+
 <script src="js/app.js"></script>
 </body>
 </html>

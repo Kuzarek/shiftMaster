@@ -392,6 +392,19 @@ td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
 [data-theme="dark"] .ts-role-admin{background:var(--purple-dim)}
 [data-theme="dark"] .ts-role-editor{background:var(--blue-dim)}
 [data-theme="dark"] .ts-role-worker{background:var(--green-dim)}
+.ts-del-btn{background:none;border:none;cursor:pointer;font-size:13px;padding:2px 4px;border-radius:4px;color:var(--muted);transition:color .15s,background .15s;line-height:1;flex-shrink:0}
+.ts-del-btn:hover{color:var(--red);background:var(--red-bg)}
+/* DELETE TEAM MODAL */
+.del-team-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center}
+.del-team-modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:28px 24px 20px;max-width:360px;width:90%;box-shadow:0 12px 40px rgba(0,0,0,.25);text-align:center;animation:fadeUp .2s ease}
+.del-team-icon{font-size:32px;margin-bottom:10px}
+.del-team-title{font-size:17px;font-weight:800;color:var(--text);margin:0 0 10px}
+.del-team-msg{font-size:13px;color:var(--text2);line-height:1.7;margin:0 0 16px}
+.del-team-btns{display:flex;gap:8px;justify-content:center}
+.del-team-confirm{background:var(--red);border:none;border-radius:var(--rs);color:#fff;cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;padding:8px 20px;transition:opacity .15s}
+.del-team-confirm:hover{opacity:.85}.del-team-confirm:disabled{opacity:.5;cursor:not-allowed}
+.del-team-cancel{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;padding:8px 20px;transition:all .15s}
+.del-team-cancel:hover{border-color:var(--border2)}
 .ts-empty{font-family:'Fira Code',monospace;font-size:11px;color:var(--muted);text-align:center;padding:16px 0}
 
 /* ── MEMBERS PANEL ──────────────────────────────────────── */

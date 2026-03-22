@@ -1521,11 +1521,52 @@ function renderTeamList(){
   list.innerHTML=keys.map(tid=>{
     const t=teams[tid];
     const role=t.role||'worker';
+    const delBtn=role==='admin'
+      ?`<button class="ts-del-btn" onclick="event.stopPropagation();showDelTeamModal('${tid}','${(t.teamName||tid).replace(/'/g,"\\'")}')">🗑</button>`
+      :'';
     return `<div class="ts-team-item" onclick="enterTeam('${tid}')">
       <span class="ts-team-name">${t.teamName||tid}</span>
       <span class="ts-team-role ts-role-${role}">${ROLE_PL[role]||role}</span>
+      ${delBtn}
     </div>`;
   }).join('');
+}
+
+let _delTeamPending=null;
+function showDelTeamModal(tid,teamName){
+  _delTeamPending={tid,teamName};
+  document.getElementById('delTeamName').textContent=teamName;
+  document.getElementById('delTeamModal').style.display='flex';
+}
+function closeDelTeamModal(){
+  _delTeamPending=null;
+  document.getElementById('delTeamModal').style.display='none';
+}
+async function confirmDeleteTeam(){
+  if(!_delTeamPending)return;
+  const {tid,teamName}=_delTeamPending;
+  const btn=document.getElementById('delTeamConfirmBtn');
+  btn.disabled=true;btn.textContent='Usuwanie...';
+  try{
+    const teamDoc=await db.collection('teams').doc(tid).get();
+    const batch=db.batch();
+    if(teamDoc.exists){
+      const members=teamDoc.data().members||{};
+      Object.keys(members).forEach(login=>{
+        batch.update(db.collection('users').doc(login),{[`teams.${tid}`]:firebase.firestore.FieldValue.delete()});
+      });
+    }
+    batch.delete(db.collection('teams').doc(tid));
+    await batch.commit();
+    if(currentUser.teams)delete currentUser.teams[tid];
+    localStorage.setItem('sm_user',JSON.stringify(currentUser));
+    closeDelTeamModal();
+    renderTeamList();
+  }catch(e){
+    console.error(e);
+    btn.disabled=false;btn.textContent='Tak, usuń';
+    document.getElementById('delTeamErr').textContent='Błąd: '+e.message;
+  }
 }
 
 function showTsCreate(){
