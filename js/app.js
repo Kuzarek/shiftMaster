@@ -789,8 +789,8 @@ function renderPreFill(){
   const CELL={
     vac:{cls:'pf-vac',l:'U'},
     off:{cls:'pf-off',l:'✕'},
-    'no-d':{cls:'pf-nod',l:'·N'},
-    'no-n':{cls:'pf-non',l:'D·'},
+    'no-d':{cls:'pf-nod',l:'-D'},
+    'no-n':{cls:'pf-non',l:'-N'},
     'no-both':{cls:'pf-nob',l:'✕✕'},
   };
   const showDay=r=>r==='vac'||r==='off'||r==='no-d'||r==='no-n'||r==='no-both';
@@ -836,8 +836,8 @@ function renderPreFill(){
       <span class="prefill-ro">tylko odczyt</span>
       <span class="pf-leg"><span class="pf-cell pf-vac">U</span>Urlop</span>
       <span class="pf-leg"><span class="pf-cell pf-off">✕</span>Niedostępny</span>
-      <span class="pf-leg"><span class="pf-cell pf-nod">·N</span>Bez dniówki</span>
-      <span class="pf-leg"><span class="pf-cell pf-non">D·</span>Bez nocki</span>
+      <span class="pf-leg"><span class="pf-cell pf-nod">-D</span>Bez dniówki</span>
+      <span class="pf-leg"><span class="pf-cell pf-non">-N</span>Bez nocki</span>
       <span class="pf-leg"><span class="pf-cell pf-nob">✕✕</span>Obie blokady</span>
       <label class="pf-hide-chk"><input type="checkbox" ${_pfHideEmpty?'checked':''} onchange="_pfHideEmpty=this.checked;renderPreFill()"><span>Ukryj puste dni</span></label>
     </div>
@@ -944,7 +944,7 @@ function renderSched(idx,y,m){
       else if(type==='24h'){cls='c24';lbl='24h';wt+=24;}
       else{
         cls='cr'+(we?' cwe':'');
-        if(r==='no-d')lbl='·N';else if(r==='no-n')lbl='D·';else if(r==='no-both')lbl='✕';
+        if(r==='no-d')lbl='-D';else if(r==='no-n')lbl='-N';else if(r==='no-both')lbl='✕';
       }
       tbody+=`<td><div class="cell ${cls}" onclick="openCellMenu(event,${idx},${w.id},'${date}')">${lbl}</div></td>`;
     }
