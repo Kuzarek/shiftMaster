@@ -411,6 +411,7 @@ td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
 .team-bar .tlink:hover{color:var(--acc)}
 .team-bar .tlogout{margin-left:auto;background:none;border:1px solid var(--border);border-radius:var(--rs);color:var(--muted);cursor:pointer;font-family:'Fira Code',monospace;font-size:9px;padding:2px 7px;transition:all .15s}
 .team-bar .tlogout:hover{border-color:var(--red);color:var(--red)}
+.team-bar .tlogout-user{margin-left:6px;border-color:var(--red);color:var(--red)}.team-bar .tlogout-user:hover{background:var(--red-bg);border-color:var(--red);color:var(--red)}
 .team-bar .tsync{color:var(--teal);font-size:9px}
 
 /* ── APPROVED BANNER ─────────────────────────────────────── */
@@ -445,3 +446,34 @@ td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
 .tut-btn.primary:hover{background:var(--acc-h)}
 .tut-close{position:absolute;top:8px;right:10px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:4px}
 .tut-close:hover{color:var(--text)}
+
+/* ── HOLIDAYS ────────────────────────────────────────────────────── */
+/* Mini-calendar holiday indicator (red dot in top-right corner) */
+.cald.rhol{position:relative}
+.cald.rhol::after{content:'';position:absolute;top:2px;right:2px;width:4px;height:4px;border-radius:50%;background:var(--red);pointer-events:none}
+.rhol-dot{background:var(--red-bg)!important;border-color:var(--red)!important}
+/* Schedule table — holiday column header */
+th.holh{background:var(--red-bg)!important;color:var(--red)!important}
+[data-theme="dark"] th.holh{background:var(--red-dim)!important;color:#f87171!important}
+.hol-star{display:inline-block;font-size:6px;vertical-align:top;color:inherit;line-height:1.2}
+/* Holiday bar (above grafik) */
+.hol-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:9px 14px;display:flex;flex-direction:column;gap:6px;font-family:'Fira Code',monospace;font-size:10px;color:var(--text2)}
+.hol-bar-hdr{font-size:11px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px}
+.hol-bar-days{display:flex;flex-wrap:wrap;gap:4px}
+.hol-tag{display:inline-flex;align-items:center;padding:1px 5px;border-radius:3px;background:var(--red-bg);border:1px solid var(--red);color:var(--red);font-size:8px;font-weight:700;font-family:'Fira Code',monospace;white-space:nowrap}
+[data-theme="dark"] .hol-tag{background:var(--red-dim)}
+#holList{min-height:14px}
+/* Pre-fill section legend items */
+.pf-leg{display:inline-flex;align-items:center;gap:4px;font-family:'Fira Code',monospace;font-size:9px;color:var(--muted2);margin-left:6px}
+.pf-hide-chk{display:inline-flex;align-items:center;gap:4px;font-family:'Fira Code',monospace;font-size:9px;color:var(--muted);cursor:pointer;margin-left:auto;user-select:none;flex-shrink:0}
+.pf-hide-chk input{accent-color:var(--acc);cursor:pointer;width:11px;height:11px}
+.pf-col-hol{background:var(--red-bg)!important;color:var(--red)!important}
+[data-theme="dark"] .pf-col-hol{background:var(--red-dim)!important}
+.pf-hol-star{font-size:6px;color:var(--red);vertical-align:top;line-height:1.2}
+.pf-dis-tag{font-family:'Fira Code',monospace;font-size:8px;color:var(--red);margin-left:3px}
+
+/* ── DRAG-AND-DROP WORKER SORTING ──────────────────────────────── */
+.wdrag-handle{cursor:grab;color:var(--muted2);font-size:14px;line-height:1;padding:0 2px;user-select:none;flex-shrink:0;transition:color .1s}
+.wdrag-handle:hover{color:var(--muted)}
+.wcard.wdrag-src{opacity:.4;border-style:dashed}
+.wcard.wdrag-over{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc-dim);transform:scale(1.01);transition:transform .1s,box-shadow .1s}

@@ -15,6 +15,9 @@ const LS='shiftmaster_v6';
 let wCtr=0, workers=[], weModes={}, cmode={}, schedules=[];
 let _scheduleStale=null; // month key "Y-M" or null
 let _cachedStaleSchedules=null;
+let publicHolidays={}; // { "YYYY": Map<"YYYY-MM-DD", name> }
+let holidayModes={}; // { "YYYY-MM-DD": true/false } — true = 24h shift
+let _pfHideEmpty=false;
 
 // ── UTILS ──────────────────────────────────────────────────────────
 const dim=(y,m)=>new Date(y,m,0).getDate();
@@ -27,6 +30,20 @@ const ym=()=>({y:+document.getElementById('selY').value,m:+document.getElementBy
 function showContact(){document.getElementById('contactModal').style.display='flex';}
 function hideContact(){document.getElementById('contactModal').style.display='none';}
 
+// ── PUBLIC HOLIDAYS ─────────────────────────────────────────────
+function isHoliday(date){const y=date.slice(0,4);return !!(publicHolidays[y]&&publicHolidays[y].has(date));}
+function getHolidayName(date){const y=date.slice(0,4);return (publicHolidays[y]&&publicHolidays[y].get(date))||'';}
+async function fetchHolidays(year){
+  if(publicHolidays[year])return;
+  publicHolidays[year]=new Map();
+  try{
+    const r=await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/PL`);
+    if(!r.ok)return;
+    const data=await r.json();
+    data.forEach(h=>publicHolidays[year].set(h.date,h.localName||h.name));
+  }catch(e){}
+}
+
 // ── THEME ──────────────────────────────────────────────────────────
 function togTheme(){
   const h=document.documentElement,d=h.dataset.theme==='dark';
@@ -37,7 +54,11 @@ function togTheme(){
 (()=>{
   const s=localStorage.getItem('sm_theme')||'light';
   document.documentElement.dataset.theme=s;
-  document.addEventListener('DOMContentLoaded',()=>{document.getElementById('thBtn').textContent=s==='dark'?'☀️':'🌙';});
+  document.addEventListener('DOMContentLoaded',()=>{
+    document.getElementById('thBtn').textContent=s==='dark'?'☀️':'🌙';
+    const {y,m}=ym();
+    fetchHolidays(y).then(()=>{updateHolidayBar(y,m);renderWorkers();renderPreFill();});
+  });
 })();
 
 // ── MOBILE SIDEBAR TOGGLE ──────────────────────────────────────
@@ -97,6 +118,8 @@ function onMC(){
   renderApprovedBanner(_cachedAppSch);
   // Auto-show approved schedule for the new month
   const {y,m}=ym();const mk=y+'-'+m;
+  updateHolidayBar(y,m);
+  if(!publicHolidays[y]){fetchHolidays(y).then(()=>{updateHolidayBar(y,m);renderWorkers();});}
   const ap=_cachedAppSch&&_cachedAppSch[mk];
   if(ap&&!ap.revoked&&teamSession&&db){
     showApprovedSchedule(mk,'current');
@@ -141,6 +164,22 @@ function renderWEGrid(){
   g.innerHTML=h||'<p style="font-size:9px;color:var(--muted)">Brak weekendów</p>';
 }
 
+// ── HOLIDAY BAR ─────────────────────────────────────────────────
+function setHolMode(date,val){holidayModes[date]=val;}
+function getHolMode(date){return holidayModes[date]!==false;}
+function updateHolidayBar(y,m){
+  const sec=document.getElementById('holSection');if(!sec)return;
+  const n=dim(y,m);
+  const hols=[];
+  for(let d=1;d<=n;d++){const date=dstr(y,m,d);if(isHoliday(date))hols.push({d,date,name:getHolidayName(date)});}
+  if(!hols.length){sec.innerHTML='';return;}
+  const rows=hols.map(h=>{
+    const chk=getHolMode(h.date);
+    return `<label class="chkr"><input type="checkbox" ${chk?'checked':''} onchange="setHolMode('${h.date}',this.checked)"><span class="chkl">${h.d} ${MSHORT[m]} — ${h.name}</span></label>`;
+  }).join('');
+  sec.innerHTML=`<div><div class="sec">Święta <span style="font-family:'Fira Code',monospace;font-size:8px;font-weight:400;color:var(--muted)">→ zmiana 24h</span></div><div style="display:flex;flex-direction:column;gap:4px">${rows}</div><div class="chkn" style="margin-top:3px">Odznacz aby traktować jako zwykły dzień roboczy</div></div>`;
+}
+
 // ── WORKERS ────────────────────────────────────────────────────────
 function addW(name){
   const id=wCtr++;
@@ -152,9 +191,39 @@ function renderWorkers(){
   const {y,m}=ym();const list=document.getElementById('wlist');list.innerHTML='';
   workers.forEach(w=>{
     const div=document.createElement('div');
-    div.className='wcard'+(w._open?' exp':'')+(w.disabled&&teamSession?' wdis':'');div.id='wc'+w.id;
-    div.innerHTML=buildWCard(w,y,m);list.appendChild(div);
+    div.className='wcard'+(w._open?' exp':'')+(w.disabled&&teamSession?' wdis':'');
+    div.id='wc'+w.id;div.dataset.wid=w.id;
+    div.draggable=false; // enabled only via handle mousedown
+    div.innerHTML=buildWCard(w,y,m);
+    div.addEventListener('dragstart',_wDragStart);
+    div.addEventListener('dragover',_wDragOver);
+    div.addEventListener('dragleave',_wDragLeave);
+    div.addEventListener('drop',_wDrop);
+    div.addEventListener('dragend',_wDragEnd);
+    list.appendChild(div);
+    // Only allow drag when initiated from the handle
+    const handle=div.querySelector('.wdrag-handle');
+    if(handle){
+      handle.addEventListener('mousedown',()=>{div.draggable=true;});
+      handle.addEventListener('mouseup',()=>{div.draggable=false;});
+    }
   });
+}
+let _wDragSrc=null;
+function _wDragStart(e){_wDragSrc=+this.dataset.wid;this.classList.add('wdrag-src');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',this.dataset.wid);}
+function _wDragOver(e){if(!_wDragSrc||+this.dataset.wid===_wDragSrc)return;e.preventDefault();e.dataTransfer.dropEffect='move';this.classList.add('wdrag-over');}
+function _wDragLeave(e){if(!e.relatedTarget||!this.contains(e.relatedTarget))this.classList.remove('wdrag-over');}
+function _wDrop(e){
+  e.preventDefault();this.classList.remove('wdrag-over');
+  const ti=workers.findIndex(w=>w.id===+this.dataset.wid);
+  const fi=workers.findIndex(w=>w.id===_wDragSrc);
+  if(fi<0||ti<0||fi===ti)return;
+  const [moved]=workers.splice(fi,1);workers.splice(ti,0,moved);
+  renderWorkers();renderPreFill();autoSave();
+}
+function _wDragEnd(){
+  _wDragSrc=null;
+  document.querySelectorAll('.wcard').forEach(el=>{el.classList.remove('wdrag-src','wdrag-over');el.draggable=false;});
 }
 function buildWCard(w,y,m){
   const cnt=Object.keys(w.days).length;
@@ -167,6 +236,7 @@ function buildWCard(w,y,m){
   const disBtn=(teamSession&&canDo('generate'))?`<button class="wdisbtn${w.disabled?' dis':''}" onclick="togWDis(${w.id})" title="${w.disabled?'Włącz do grafiku':'Wyklucz z grafiku'}">${w.disabled?'⊘':'◉'}</button>`:'';
   const delBtn=isAdmin?`<button class="wdel" onclick="delW(${w.id})">×</button>`:'';
   return `<div class="whead">
+    <div class="wdrag-handle" title="Przeciągnij aby zmienić kolejność">⠿</div>
     <div class="wavatar" style="background:${hex}22;border:1.5px solid ${hex}88;color:${hex}">${initials}</div>
     ${canEdit
       ?`<input class="wname" value="${w.name}" oninput="workers.find(x=>x.id===${w.id}).name=this.value;autoSave()" placeholder="Imię">`
@@ -226,7 +296,7 @@ function togW(id){
 function togWDis(id){
   if(!canDo('generate'))return;
   const w=workers.find(x=>x.id===id);if(!w)return;
-  w.disabled=!w.disabled;renderWorkers();markStale();autoSave();
+  w.disabled=!w.disabled;renderWorkers();renderPreFill();markStale();autoSave();
 }
 
 // ── MINI CALENDAR ─────────────────────────────────────────────────
@@ -247,14 +317,16 @@ function buildCal(w,y,m){
   let g=`<div class="calgrid">${['Pn','Wt','Śr','Cz','Pt','Sb','Nd'].map(x=>`<div class="caldn">${x}</div>`).join('')}${Array(off).fill('<div class="cald emp"></div>').join('')}`;
   for(let d=1;d<=n;d++){
     const date=dstr(y,m,d);const wd=dow(y,m,d);const we=wd===0||wd===6;
-    const r=w.days[date];
+    const r=w.days[date];const hol=isHoliday(date);
     let cls=we?'we':'';
+    if(hol)cls+=' rhol';
     if(r==='vac')cls+=we?' rvw':' rv';
     else if(r==='off')cls+=' roff';
     else if(r==='no-d')cls+=' rnd';
     else if(r==='no-n')cls+=' rnn';
     else if(r==='no-both')cls+=' rnb';
-    g+=`<div class="cald ${cls}" onclick="calClick(${w.id},'${date}')">${d}</div>`;
+    const holTitle=hol?` title="${getHolidayName(date)}"`:''
+    g+=`<div class="cald ${cls}"${holTitle} onclick="calClick(${w.id},'${date}')">${d}</div>`;
   }
   g+='</div>';
   return `${canEdit?`<div class="cmodes">${btns}</div><div class="mhint">${CM[cm].h}</div>`:''}
@@ -266,6 +338,7 @@ function buildCal(w,y,m){
     <div class="cli"><div class="clidot" style="background:var(--gray-bg);border-color:var(--gray)"></div>Niedostępny</div>
     <div class="cli"><div class="clidot" style="background:var(--yellow-bg);border-color:var(--yellow)"></div>Bez dniówki</div>
     <div class="cli"><div class="clidot" style="background:var(--orange-bg);border-color:var(--orange)"></div>Bez nocki</div>
+    <div class="cli"><div class="clidot rhol-dot"></div>Święto</div>
   </div>`;
 }
 function setCM(wid,mode){
@@ -308,13 +381,18 @@ function genShifts(y,m,shiftMode,minPerDay){
       }
     } else {
       if(wd>=1&&wd<=5){
-        // Emergency 24h: if only 1 worker available on a workday
-        const avail=workers.filter(w=>{const r=w.days[date];return !(teamSession&&w.disabled)&&r!=='vac'&&r!=='off';});
-        if(avail.length<=1){
+        // Holiday 24h mode
+        if(isHoliday(date)&&getHolMode(date)){
           shifts.push({date,type:'24h',hours:24});
         } else {
-          shifts.push({date,type:'dzien',hours:12});
-          shifts.push({date,type:'noc',hours:12});
+          // Emergency 24h: if only 1 worker available on a workday
+          const avail=workers.filter(w=>{const r=w.days[date];return !(teamSession&&w.disabled)&&r!=='vac'&&r!=='off';});
+          if(avail.length<=1){
+            shifts.push({date,type:'24h',hours:24});
+          } else {
+            shifts.push({date,type:'dzien',hours:12});
+            shifts.push({date,type:'noc',hours:12});
+          }
         }
       } else {
         const satS=wd===6?date:dstr(y,m,d-1);
@@ -563,6 +641,10 @@ function runGen(){
   if(!canDo('generate')){toast('Brak uprawnień do generowania');return;}
   if(!workers.length){alert('Dodaj co najmniej 1 pracownika!');return;}
   if(_cachedAppSch&&_cachedAppSch[mk]&&!_cachedAppSch[mk].revoked)return;
+  // Flush any pending debounced save immediately so Firestore has current data
+  // and set _skipSnap to prevent incoming snapshots from overwriting local state
+  if(_saveT){clearTimeout(_saveT);_saveT=null;saveToFirestore();}
+  if(teamSession)_skipSnap=true;
   function _doGen(){
   const btn=document.getElementById('genBtn');
   btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Generowanie...';
@@ -701,41 +783,45 @@ function renderPreFill(){
   const mk=y+'-'+m;
   const ap=_cachedAppSch&&_cachedAppSch[mk];
   if(ap&&!ap.revoked){c.innerHTML='';return;}
+  if(!workers.length){c.innerHTML='';return;}
 
   const DOW=['Pn','Wt','Śr','Cz','Pt','Sb','Nd'];
   const CELL={
     vac:{cls:'pf-vac',l:'U'},
     off:{cls:'pf-off',l:'✕'},
+    'no-d':{cls:'pf-nod',l:'·N'},
+    'no-n':{cls:'pf-non',l:'D·'},
+    'no-both':{cls:'pf-nob',l:'✕✕'},
   };
-  const showDay=r=>r==='vac'||r==='off';
+  const showDay=r=>r==='vac'||r==='off'||r==='no-d'||r==='no-n'||r==='no-both';
   const n=dim(y,m);
-  // Active workers only
-  const ws=teamSession?workers.filter(w=>!w.disabled):workers;
-  if(!ws.length){c.innerHTML='';return;}
 
-  // Collect only days with at least one marking
-  const markedDays=[];
+  // All days of the month (filter empty if checkbox on)
+  const activeWs=workers.filter(w=>!w.disabled);
+  const allDays=[];
   for(let d=1;d<=n;d++){
     const date=dstr(y,m,d);
-    if(ws.some(w=>showDay(w.days[date])))markedDays.push({d,date,wd:dow(y,m,d)});
+    if(_pfHideEmpty&&!activeWs.some(w=>showDay(w.days[date])))continue;
+    allDays.push({d,date,wd:dow(y,m,d)});
   }
-  if(!markedDays.length){c.innerHTML='';return;}
 
-  // Header: dates
-  const dateHdrs=markedDays.map(({d,wd})=>{
+  // Header: all dates
+  const dateHdrs=allDays.map(({d,wd,date})=>{
     const dowIdx=wd===0?6:wd-1;
-    const isWe=wd===0||wd===6;
-    return `<th class="${isWe?'pf-col-we':''}"><div class="pf-dnum">${d}</div><div class="pf-ddow">${DOW[dowIdx]}</div></th>`;
+    const isWe=wd===0||wd===6;const hol=isHoliday(date);
+    const cls=[isWe?'pf-col-we':'',hol?'pf-col-hol':''].filter(Boolean).join(' ');
+    return `<th${cls?' class="'+cls+'"':''}><div class="pf-dnum">${d}${hol?'<span class="pf-hol-star">★</span>':''}</div><div class="pf-ddow">${DOW[dowIdx]}</div></th>`;
   }).join('');
 
-  // Rows: workers
-  const rows=ws.map(w=>{
+  // Rows: ALL workers (disabled shown as fully unavailable)
+  const rows=workers.map(w=>{
     const ini=w.name.trim().split(/\s+/).map(p=>p[0]||'').join('').slice(0,2).toUpperCase()||'?';
-    const wCell=`<td class="pf-wcell"><div class="pf-av" style="background:${w.color}22;color:${w.color};border-color:${w.color}88">${ini}</div><span class="pf-wname">${w.name.split(' ')[0]}</span></td>`;
-    const cells=markedDays.map(({date,wd})=>{
-      const r=w.days[date];
+    const wCell=`<td class="pf-wcell"${w.disabled?' style="opacity:.55"':''}><div class="pf-av" style="background:${w.color}22;color:${w.color};border-color:${w.color}88">${ini}</div><span class="pf-wname">${w.name.split(' ')[0]}</span>${w.disabled?'<span class="pf-dis-tag">⊘</span>':''}</td>`;
+    const cells=allDays.map(({date,wd})=>{
       const isWe=wd===0||wd===6;
       const cls=isWe?'pf-col-we':'';
+      if(w.disabled)return `<td class="${cls}"><span class="pf-cell pf-off">✕</span></td>`;
+      const r=w.days[date];
       if(!r||!showDay(r))return `<td class="${cls}"></td>`;
       const isWeVac=r==='vac'&&isWe;
       const s=isWeVac?{cls:'pf-vac-w',l:'U'}:(CELL[r]||{cls:'',l:r});
@@ -748,6 +834,12 @@ function renderPreFill(){
     <div class="prefill-hdr">
       <span class="prefill-title">Dostępność — ${MONTHS[m]} ${y}</span>
       <span class="prefill-ro">tylko odczyt</span>
+      <span class="pf-leg"><span class="pf-cell pf-vac">U</span>Urlop</span>
+      <span class="pf-leg"><span class="pf-cell pf-off">✕</span>Niedostępny</span>
+      <span class="pf-leg"><span class="pf-cell pf-nod">·N</span>Bez dniówki</span>
+      <span class="pf-leg"><span class="pf-cell pf-non">D·</span>Bez nocki</span>
+      <span class="pf-leg"><span class="pf-cell pf-nob">✕✕</span>Obie blokady</span>
+      <label class="pf-hide-chk"><input type="checkbox" ${_pfHideEmpty?'checked':''} onchange="_pfHideEmpty=this.checked;renderPreFill()"><span>Ukryj puste dni</span></label>
     </div>
     <div class="prefill-scroll">
       <table class="prefill-table">
@@ -825,7 +917,10 @@ function renderSched(idx,y,m){
   let thead=`<thead><tr><th class="wcol">Pracownik</th>`;
   for(let d=1;d<=n;d++){
     const wd=dow(y,m,d);const we=wd===0||wd===6;
-    thead+=`<th${we?' class="weh"':''}><div>${d}</div><div style="font-size:6px;opacity:.7">${DNS[wd]}</div></th>`;
+    const date=dstr(y,m,d);const hol=isHoliday(date);
+    const cls=[we?'weh':'',hol?'holh':''].filter(Boolean).join(' ');
+    const holName=hol?getHolidayName(date):'';
+    thead+=`<th${cls?' class="'+cls+'"':''}${hol?' title="'+holName+'"':''}><div>${d}${hol?'<span class="hol-star">★</span>':''}</div><div style="font-size:6px;opacity:.7">${DNS[wd]}</div></th>`;
   }
   thead+=`<th class="scol">Suma</th></tr></thead>`;
 
@@ -1806,6 +1901,9 @@ function applyTeamData(d){
   renderApprovedBanner(d.approvedSchedules);
   renderPreFill();
   renderStaleNotice();
+  const {y:_hy,m:_hm}=ym();
+  fetchHolidays(_hy).then(()=>{updateHolidayBar(_hy,_hm);renderPreFill();});
+  updateHolidayBar(_hy,_hm);
 }
 
 async function saveToFirestore(){
@@ -1853,7 +1951,7 @@ function autoSave(){
   const autoOn=document.getElementById('chkAutoSave');
   if(autoOn&&!autoOn.checked)return;
   clearTimeout(_saveT);
-  _saveT=setTimeout(()=>saveToFirestore(),1500);
+  _saveT=setTimeout(()=>saveToFirestore(),600);
 }
 
 // ── REALTIME SYNC ────────────────────────────────────────────────
