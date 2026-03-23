@@ -710,7 +710,7 @@ function runGen(){
         if(results2.length>0){
           fallbackUsed=true;
           // Merge: first results from 24h, then from split
-          finalResults=[...results1,...results2].slice(0,count+results2.length);
+          finalResults=[...results1,...results2].slice(0,count);
         }
       }
 
