@@ -556,7 +556,7 @@ function wScore(w,shift,sched,cfg){
   if(w.minDays&&shift.type==='dzien'){
     if(wd>=1&&wd<=5){
       const cnt=weekOfficeCnt(wid,shift.date,sched);
-      if(cnt<w.minDays)score-=3;
+      if(cnt<w.minDays)score-=7;
     }
   }
 
@@ -582,16 +582,16 @@ function wScore(w,shift,sched,cfg){
   return score;
 }
 
-// Pre-fill: insert mandatory day-shifts (reqDays) into schedule before backtracking
+// Pre-fill: insert mandatory day-shifts (reqDays + extra minDays) before backtracking
 function prefillReqDays(shifts,y,m){
   const prefilled=[];
-  const usedShifts=new Set(); // indices of shifts consumed by prefill
+  const usedShifts=new Set();
   const n=dim(y,m);
+
+  // ── Pass 1: mandatory reqDays ────────────────────────────────────
   for(let d=1;d<=n;d++){
-    const date=dstr(y,m,d);
-    const wd=dow(y,m,d);
-    if(wd<1||wd>5)continue; // Mon-Fri only
-    // Collect workers who have a reqDay on this weekday
+    const date=dstr(y,m,d);const wd=dow(y,m,d);
+    if(wd<1||wd>5)continue;
     const reqWorkers=workers.filter(w=>{
       if(teamSession&&w.disabled)return false;
       if(!w.reqDays||!w.reqDays.length)return false;
@@ -600,23 +600,71 @@ function prefillReqDays(shifts,y,m){
       if(r==='vac'||r==='off'||r==='no-d'||r==='no-both')return false;
       return true;
     });
-    if(!reqWorkers.length)continue;
-    // Find a dzien shift for this date
     for(const w of reqWorkers){
-      // Look for a free dzien shift on this date
       const si=shifts.findIndex((s,i)=>!usedShifts.has(i)&&s.date===date&&s.type==='dzien');
-      if(si===-1)continue; // no dzien shift available — may be a 24h weekend
+      if(si===-1)continue;
       const s=shifts[si];
-      // Check for conflict with previous day (night/24h)
       const prevDate=addD(date,-1);
       if(prefilled.some(e=>e.wid===w.id&&e.date===prevDate&&(e.type==='noc'||e.type==='24h')))continue;
-      // Check if this worker already has an assignment on this date
       if(prefilled.some(e=>e.wid===w.id&&e.date===date))continue;
       prefilled.push({wid:w.id,date:s.date,type:s.type,hours:s.hours,slot:s.slot});
       usedShifts.add(si);
     }
   }
-  // Return pre-filled schedule and remaining shifts
+
+  // ── Pass 2: extra minDays slots (minDays > reqDays count per week) ─
+  // Find the Monday of the first week that contains day 1
+  const firstMon=(()=>{
+    const wd1=dow(y,m,1);
+    // Go back to the most recent Monday (wd1: 0=Sun,1=Mon..6=Sat)
+    const offset=wd1===0?6:wd1-1;
+    const d=new Date(y,m-1,1);d.setDate(1-offset);return d;
+  })();
+
+  const minDayWorkers=workers.filter(w=>{
+    if(teamSession&&w.disabled)return false;
+    return (w.minDays||0)>0;
+  });
+
+  for(let wi=0;wi<7;wi++){ // up to 6 weeks in a month
+    const weekStart=new Date(firstMon);weekStart.setDate(firstMon.getDate()+wi*7);
+    // Collect Mon-Fri dates of this week that fall in current month
+    const weekDates=[];
+    for(let dd=0;dd<5;dd++){
+      const d=new Date(weekStart);d.setDate(weekStart.getDate()+dd);
+      if(d.getFullYear()===y&&d.getMonth()===m-1)weekDates.push(d.toISOString().slice(0,10));
+    }
+    if(!weekDates.length)continue;
+    // Check if this week overlaps the month at all
+    if(weekDates.every(date=>+date.slice(5,7)!==m))continue;
+
+    for(const w of minDayWorkers){
+      const alreadyFilled=weekDates.filter(date=>
+        prefilled.some(e=>e.wid===w.id&&e.date===date&&e.type==='dzien')
+      ).length;
+      let extraNeeded=w.minDays-alreadyFilled;
+      if(extraNeeded<=0)continue;
+
+      for(const date of weekDates){
+        if(extraNeeded<=0)break;
+        const wd=new Date(date).getDay();
+        // Skip if this day is a reqDay (already handled in pass 1)
+        if(w.reqDays&&w.reqDays.includes(wd))continue;
+        const r=w.days[date];
+        if(r==='vac'||r==='off'||r==='no-d'||r==='no-both')continue;
+        if(prefilled.some(e=>e.wid===w.id&&e.date===date))continue;
+        const si=shifts.findIndex((s,i)=>!usedShifts.has(i)&&s.date===date&&s.type==='dzien');
+        if(si===-1)continue;
+        const prevDate=addD(date,-1);
+        if(prefilled.some(e=>e.wid===w.id&&e.date===prevDate&&(e.type==='noc'||e.type==='24h')))continue;
+        const s=shifts[si];
+        prefilled.push({wid:w.id,date:s.date,type:s.type,hours:s.hours,slot:s.slot});
+        usedShifts.add(si);
+        extraNeeded--;
+      }
+    }
+  }
+
   const remaining=shifts.filter((_,i)=>!usedShifts.has(i));
   return {prefilled,remaining};
 }
