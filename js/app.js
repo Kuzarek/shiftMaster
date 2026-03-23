@@ -17,6 +17,8 @@ let _scheduleStale=null; // month key "Y-M" or null
 let _cachedStaleSchedules=null;
 let publicHolidays={}; // { "YYYY": Map<"YYYY-MM-DD", name> }
 let holidayModes={}; // { "YYYY-MM-DD": true/false } — true = 24h shift
+let teamDaysOff={}; // { "YYYY-MM-DD": true } — team-wide day off, no shifts generated
+let _tdoOpen=false; // toggle state for team days off calendar
 let _pfHideEmpty=false;
 
 // ── UTILS ──────────────────────────────────────────────────────────
@@ -57,7 +59,8 @@ function togTheme(){
   document.addEventListener('DOMContentLoaded',()=>{
     document.getElementById('thBtn').textContent=s==='dark'?'☀️':'🌙';
     const {y,m}=ym();
-    fetchHolidays(y).then(()=>{updateHolidayBar(y,m);renderWorkers();renderPreFill();});
+    fetchHolidays(y).then(()=>{updateHolidayBar(y,m);updateTeamDaysOffBar(y,m);renderWorkers();renderPreFill();});
+    if(localStorage.getItem('sm_debug')==='1'){const cb=document.getElementById('chkDebug');if(cb){cb.checked=true;toggleDebugMode(true);}}
   });
 })();
 
@@ -78,7 +81,7 @@ function saveW(){
   try{
     localStorage.setItem(LS,JSON.stringify({
       workers:workers.map(w=>({id:w.id,name:w.name,color:w.color,days:w.days||{},minDays:w.minDays||0,reqDays:w.reqDays||[]})),
-      ctr:wCtr
+      ctr:wCtr,teamDaysOff
     }));
     toast('✓ Zapisano '+workers.length+' pracowników');
   }catch(e){toast('✗ Błąd zapisu');}
@@ -90,7 +93,9 @@ function loadW(){
     const d=JSON.parse(raw);
     workers=d.workers.map(w=>({...w,_open:false,days:w.days||{},minDays:w.minDays||0,reqDays:w.reqDays||[]}));
     wCtr=d.ctr||workers.length;
+    if(d.teamDaysOff)teamDaysOff=d.teamDaysOff;
     workers.forEach(w=>{cmode[w.id]='vac';});
+    const {y:ly,m:lm}=ym();updateTeamDaysOffBar(ly,lm);
     renderWorkers();toast('✓ Wczytano '+workers.length+' pracowników');
   }catch(e){toast('✗ Błąd wczytywania');}
 }
@@ -118,7 +123,7 @@ function onMC(){
   renderApprovedBanner(_cachedAppSch);
   // Auto-show approved schedule for the new month
   const {y,m}=ym();const mk=y+'-'+m;
-  updateHolidayBar(y,m);
+  updateHolidayBar(y,m);updateTeamDaysOffBar(y,m);
   if(!publicHolidays[y]){fetchHolidays(y).then(()=>{updateHolidayBar(y,m);renderWorkers();});}
   const ap=_cachedAppSch&&_cachedAppSch[mk];
   if(ap&&!ap.revoked&&teamSession&&db){
@@ -129,8 +134,8 @@ function onMC(){
       schedules=ps.map(s=>s.shifts||s);
       window._schedMeta=(_cachedSchedMeta&&_cachedSchedMeta[mk])||null;
       if(window._schedMeta){
-        const {y:sy,m:sm,fallbackUsed,firstCount}=window._schedMeta;
-        renderAll(sy,sm,fallbackUsed||false,firstCount||schedules.length);
+        const {y:sy,m:sm,fallbackUsed,firstCount,split24Dates:s24d}=window._schedMeta;
+        renderAll(sy,sm,fallbackUsed||false,firstCount||schedules.length,s24d||null);
       } else {
         document.getElementById('mainInner').innerHTML='<div class="empty"><div class="empty-icon">📅</div><h2>Brak grafiku</h2><p>Skonfiguruj pracowników, oznacz urlopy i kliknij „Generuj Grafik"</p></div>';
       }
@@ -178,6 +183,28 @@ function updateHolidayBar(y,m){
     return `<label class="chkr"><input type="checkbox" ${chk?'checked':''} onchange="setHolMode('${h.date}',this.checked)"><span class="chkl">${h.d} ${MSHORT[m]} — ${h.name}</span></label>`;
   }).join('');
   sec.innerHTML=`<div><div class="sec">Święta <span style="font-family:'Fira Code',monospace;font-size:8px;font-weight:400;color:var(--muted)">→ zmiana 24h</span></div><div style="display:flex;flex-direction:column;gap:4px">${rows}</div><div class="chkn" style="margin-top:3px">Odznacz aby traktować jako zwykły dzień roboczy</div></div>`;
+}
+
+// ── TEAM DAYS OFF ─────────────────────────────────────────────────
+function isTeamDayOff(date){return !!teamDaysOff[date];}
+function toggleTeamDayOff(date){
+  if(teamDaysOff[date])delete teamDaysOff[date];else teamDaysOff[date]=true;
+  const {y,m}=ym();updateTeamDaysOffBar(y,m);markStale();autoSave();
+}
+function updateTeamDaysOffBar(y,m){
+  const sec=document.getElementById('tdoSection');if(!sec)return;
+  const n=dim(y,m);const off=(dow(y,m,1)+6)%7;
+  const cnt=Object.keys(teamDaysOff).filter(d=>{const[dy,dm]=d.split('-');return +dy===y&&+dm===m;}).length;
+  let g=`<div class="calgrid">${['Pn','Wt','Śr','Cz','Pt','Sb','Nd'].map(x=>`<div class="caldn">${x}</div>`).join('')}${Array(off).fill('<div class="cald emp"></div>').join('')}`;
+  for(let d=1;d<=n;d++){
+    const date=dstr(y,m,d);const wd=dow(y,m,d);const we=wd===0||wd===6;
+    const sel=isTeamDayOff(date);const hol=isHoliday(date);
+    let cls=we?'we':'';if(hol)cls+=' rhol';if(sel)cls+=' rtdo';
+    g+=`<div class="cald ${cls}" onclick="toggleTeamDayOff('${date}')">${d}</div>`;
+  }
+  g+='</div>';
+  const arrow=_tdoOpen?'▾':'▸';
+  sec.innerHTML=`<div><div class="sec tdo-toggle" onclick="_tdoOpen=!_tdoOpen;var{y,m}=ym();updateTeamDaysOffBar(y,m)" style="cursor:pointer;user-select:none">${arrow} Dni wolne zespołu <span style="font-family:'Fira Code',monospace;font-size:8px;font-weight:400;color:var(--muted)">${cnt?cnt+' zaznaczonych':''}</span></div>${_tdoOpen?`<div style="margin-top:4px">${g}</div><div class="chkn" style="margin-top:3px">Kliknij dzień, aby oznaczyć jako wolny — grafik pominie te dni</div>`:''}</div>`;
 }
 
 // ── WORKERS ────────────────────────────────────────────────────────
@@ -317,9 +344,10 @@ function buildCal(w,y,m){
   let g=`<div class="calgrid">${['Pn','Wt','Śr','Cz','Pt','Sb','Nd'].map(x=>`<div class="caldn">${x}</div>`).join('')}${Array(off).fill('<div class="cald emp"></div>').join('')}`;
   for(let d=1;d<=n;d++){
     const date=dstr(y,m,d);const wd=dow(y,m,d);const we=wd===0||wd===6;
-    const r=w.days[date];const hol=isHoliday(date);
+    const r=w.days[date];const hol=isHoliday(date);const tdo=isTeamDayOff(date);
     let cls=we?'we':'';
     if(hol)cls+=' rhol';
+    if(tdo)cls+=' rtdo';
     if(r==='vac')cls+=we?' rvw':' rv';
     else if(r==='off')cls+=' roff';
     else if(r==='no-d')cls+=' rnd';
@@ -339,6 +367,7 @@ function buildCal(w,y,m){
     <div class="cli"><div class="clidot" style="background:var(--yellow-bg);border-color:var(--yellow)"></div>Bez dniówki</div>
     <div class="cli"><div class="clidot" style="background:var(--orange-bg);border-color:var(--orange)"></div>Bez nocki</div>
     <div class="cli"><div class="clidot rhol-dot"></div>Święto</div>
+    <div class="cli"><div class="clidot rtdo-dot"></div>Wolne zespołu</div>
   </div>`;
 }
 function setCM(wid,mode){
@@ -374,6 +403,7 @@ function genShifts(y,m,shiftMode,minPerDay){
   const n=dim(y,m);const shifts=[];
   for(let d=1;d<=n;d++){
     const date=dstr(y,m,d);const wd=dow(y,m,d);
+    if(isTeamDayOff(date))continue;
     if(is8){
       const we8=document.getElementById('chk8hWe')&&document.getElementById('chk8hWe').checked;
       if(wd>=1&&wd<=5||we8){
@@ -420,6 +450,8 @@ function buildQuotas(y,m,shiftMode,minPerDay){
   const we8=is8&&document.getElementById('chk8hWe')&&document.getElementById('chk8hWe').checked;
   let wdayDzien=0,wdayNoc=0,weH=0;
   for(let d=1;d<=n;d++){
+    const date=dstr(y,m,d);
+    if(isTeamDayOff(date))continue;
     const wd=dow(y,m,d);
     if(wd>=1&&wd<=5){wdayDzien++;if(!is8)wdayNoc++;}
     else if(we8){wdayDzien++;}
@@ -442,9 +474,14 @@ function buildQuotas(y,m,shiftMode,minPerDay){
   const totalDSlots=is8?wdayDzien*mpd:wdayDzien;
   const maxD=numW?totalDSlots/numW:0;
   const maxNocWeH=is8?0:Math.max(0,targetH-maxD*12);
+  // Count weeks that overlap this month (for minDays scaling)
+  const weeks=(()=>{let wk=0;for(let d=1;d<=n;d++){if(dow(y,m,d)===1||(d===1&&dow(y,m,d)!==1))wk++;}return wk;})();
   const quotas={};
   activeW.forEach(w=>{
-    quotas[w.id]={maxDzienWday:maxD,maxNocWeH,target:targetH};
+    // Workers with minDays/reqDays need a higher dzien quota to match their prefilled shifts
+    const personalD=Math.max(maxD,(w.minDays||0)*weeks);
+    const personalNocWeH=is8?0:Math.max(0,targetH-personalD*dH);
+    quotas[w.id]={maxDzienWday:personalD,maxNocWeH:personalNocWeH,target:targetH};
   });
   return quotas;
 }
@@ -465,12 +502,14 @@ function weekOfficeCnt(wid,date,sched){
 function canAssign(w,shift,sched,cfg){
   const {date,type}=shift;const wid=w.id;const r=w.days[date];
   const q=cfg.quotas[wid];
+  if(!q)return false;
 
   if(r==='vac'||r==='off')return false;
   if(type==='dzien'&&(r==='no-d'||r==='no-both'))return false;
   if(type==='noc'&&(r==='no-n'||r==='no-both'))return false;
   if(type==='24h'&&(r==='no-d'||r==='no-n'||r==='no-both'))return false;
   if(sched.some(e=>e.wid===wid&&e.date===date))return false;
+  if(type==='24h'&&cfg.max24&&sched.filter(e=>e.wid===wid&&e.type==='24h').length>=cfg.max24Val)return false;
 
   const prev=addD(date,-1),next=addD(date,1);
   const pe=sched.find(e=>e.wid===wid&&e.date===prev);
@@ -537,6 +576,7 @@ function canAssign(w,shift,sched,cfg){
 
 function wScore(w,shift,sched,cfg){
   const wid=w.id;const q=cfg.quotas[wid];
+  if(!q)return 9999;
   const myH=sched.filter(e=>e.wid===wid).reduce((s,e)=>s+e.hours,0);
   let score=myH/q.target; // 0..1, lower = needs more hours
 
@@ -638,14 +678,18 @@ function prefillReqDays(shifts,y,m){
     // Check if this week overlaps the month at all
     if(weekDates.every(date=>+date.slice(5,7)!==m))continue;
 
-    for(const w of minDayWorkers){
+    // Shuffle worker order to vary results across generations
+    const shuffledMinDayWorkers=[...minDayWorkers].sort(()=>Math.random()-.5);
+    for(const w of shuffledMinDayWorkers){
       const alreadyFilled=weekDates.filter(date=>
         prefilled.some(e=>e.wid===w.id&&e.date===date&&e.type==='dzien')
       ).length;
       let extraNeeded=w.minDays-alreadyFilled;
       if(extraNeeded<=0)continue;
 
-      for(const date of weekDates){
+      // Shuffle candidate days so extra slots vary across generations
+      const candidateDates=[...weekDates].sort(()=>Math.random()-.5);
+      for(const date of candidateDates){
         if(extraNeeded<=0)break;
         const wd=new Date(date).getDay();
         // Skip if this day is a reqDay (already handled in pass 1)
@@ -717,19 +761,23 @@ function runGen(){
       const maxNVal=+document.getElementById('maxNVal').value||3;
       const maxDVal=+document.getElementById('maxDVal').value||3;
       const shiftMode=document.getElementById('selShiftMode').value;
+      const max24On=!!(document.getElementById('chkMax24')&&document.getElementById('chkMax24').checked);
+      const max24Val=+(document.getElementById('max24Val')&&document.getElementById('max24Val').value)||4;
       const baseCfg={
         maxN:document.getElementById('chkN').checked,
         maxNVal,
         maxD:document.getElementById('chkD').checked,
         maxDVal,
         maxSun:!!(document.getElementById('chkMaxSun')&&document.getElementById('chkMaxSun').checked),
+        max24:max24On,max24Val,
         count,tol,
       };
 
       // In 8h mode there are no nights or weekends — no fallback strategy
       const minPerDay=shiftMode==='8h'?(+document.getElementById('minPerDay').value||1):1;
+      let fallbackUsed=false,split24Used=false,split24Dates=[],results1=[];
       if(shiftMode==='8h'){
-        const deadline8=5000*Math.max(1,minPerDay);
+        const deadline8=30000*Math.max(1,minPerDay);
         const allShifts=genShifts(y,m,shiftMode,minPerDay);
         const {prefilled,remaining}=prefillReqDays(allShifts,y,m);
         let cfg1={...baseCfg,quotas:buildQuotas(y,m,shiftMode,minPerDay),_deadline:Date.now()+deadline8};
@@ -746,12 +794,10 @@ function runGen(){
 
       const allShifts12=genShifts(y,m,shiftMode);
       const {prefilled:pf12,remaining:rem12}=prefillReqDays(allShifts12,y,m);
-      let cfg1={...baseCfg,quotas:buildQuotas(y,m,shiftMode),_deadline:Date.now()+5000};
-      const results1=[];
+      let cfg1={...baseCfg,quotas:buildQuotas(y,m,shiftMode),_deadline:Date.now()+30000};
       backtrack(rem12,0,[...pf12],results1,count,cfg1);
 
       let finalResults=results1;
-      let fallbackUsed=false;
 
       if(results1.length<count){
         const splitModes={};
@@ -762,25 +808,73 @@ function runGen(){
         const need=count-results1.length;
         const allShiftsFb=genShifts(y,m,shiftMode);
         const {prefilled:pfFb,remaining:remFb}=prefillReqDays(allShiftsFb,y,m);
-        let cfg2={...baseCfg,count:need+count,quotas:buildQuotas(y,m,shiftMode),_deadline:Date.now()+5000};
+        let cfg2={...baseCfg,quotas:buildQuotas(y,m,shiftMode),_deadline:Date.now()+30000};
         const results2=[];
-        backtrack(remFb,0,[...pfFb],results2,cfg2.count,cfg2);
+        backtrack(remFb,0,[...pfFb],results2,need,cfg2);
 
         weModes=savedModes; // restore original
 
         if(results2.length>0){
           fallbackUsed=true;
-          // Merge: first results from 24h, then from split
           finalResults=[...results1,...results2].slice(0,count);
         }
       }
 
       schedules=finalResults;
+
+      // ── Fallback 2: if max24 is active and still no schedules, split 24h → D+N ──
+      if(!schedules.length&&max24On){
+        // Generate shifts but replace ALL 24h with D+N pairs
+        const savedModes2=weModes;
+        const splitModes2={};
+        Object.keys(origWeModes).forEach(k=>splitModes2[k]='split');
+        weModes=splitModes2;
+
+        const allShiftsSplit24=genShifts(y,m,shiftMode).map(s=>{
+          if(s.type==='24h'){
+            split24Dates.push(s.date);
+            return null; // mark for replacement
+          }
+          return s;
+        }).filter(Boolean);
+        // Add D+N pairs for each removed 24h
+        const uniqueDates=[...new Set(split24Dates)];
+        uniqueDates.forEach(date=>{
+          allShiftsSplit24.push({date,type:'dzien',hours:12});
+          allShiftsSplit24.push({date,type:'noc',hours:12});
+        });
+        allShiftsSplit24.sort((a,b)=>a.date.localeCompare(b.date)||(a.type==='dzien'?-1:b.type==='dzien'?1:0));
+
+        const {prefilled:pfS24,remaining:remS24}=prefillReqDays(allShiftsSplit24,y,m);
+        const cfgS24={...baseCfg,max24:false,quotas:buildQuotas(y,m,shiftMode),_deadline:Date.now()+30000};
+        const resultsS24=[];
+        backtrack(remS24,0,[...pfS24],resultsS24,count,cfgS24);
+
+        weModes=savedModes2;
+
+        if(resultsS24.length>0){
+          split24Used=true;
+          schedules=resultsS24;
+          split24Dates=uniqueDates;
+        }
+      }
+
       } // end else (12/24h mode)
       if(!schedules.length){
-        document.getElementById('mainInner').innerHTML='<div class="alert">⚠ Nie udało się wygenerować grafiku w wyznaczonym czasie. Zwiększ odchylenie godzin lub zmniejsz ograniczenia.</div>';
+        const {y:dy,m:dm}=ym();
+        document.getElementById('mainInner').innerHTML=diagNoSchedule(dy,dm,shiftMode,minPerDay,baseCfg);
+      } else if(split24Used){
+        schedules.sort((a,b)=>schedDeviation(a,y,m)-schedDeviation(b,y,m));
+        renderAll(y,m,false,schedules.length,split24Dates);
+        autoSave();
+      } else if(fallbackUsed){
+        // 12/24h mode with split fallback — sort each group separately, 24h first
+        const origScheds=schedules.slice(0,results1.length).sort((a,b)=>schedDeviation(a,y,m)-schedDeviation(b,y,m));
+        const fbScheds=schedules.slice(results1.length).sort((a,b)=>schedDeviation(a,y,m)-schedDeviation(b,y,m));
+        schedules=[...origScheds,...fbScheds];
+        renderAll(y,m,true,origScheds.length);
+        autoSave();
       } else {
-        // Sort by lowest hour deviation (best schedules first)
         schedules.sort((a,b)=>schedDeviation(a,y,m)-schedDeviation(b,y,m));
         renderAll(y,m,false,schedules.length);
         autoSave();
@@ -871,9 +965,9 @@ function renderPreFill(){
   // Header: all dates
   const dateHdrs=allDays.map(({d,wd,date})=>{
     const dowIdx=wd===0?6:wd-1;
-    const isWe=wd===0||wd===6;const hol=isHoliday(date);
-    const cls=[isWe?'pf-col-we':'',hol?'pf-col-hol':''].filter(Boolean).join(' ');
-    return `<th${cls?' class="'+cls+'"':''}><div class="pf-dnum">${d}${hol?'<span class="pf-hol-star">★</span>':''}</div><div class="pf-ddow">${DOW[dowIdx]}</div></th>`;
+    const isWe=wd===0||wd===6;const hol=isHoliday(date);const tdo=isTeamDayOff(date);
+    const cls=[isWe?'pf-col-we':'',hol?'pf-col-hol':'',tdo?'pf-col-tdo':''].filter(Boolean).join(' ');
+    return `<th${cls?' class="'+cls+'"':''}><div class="pf-dnum">${d}${hol?'<span class="pf-hol-star">★</span>':''}${tdo?'<span class="pf-tdo-mark">✕</span>':''}</div><div class="pf-ddow">${DOW[dowIdx]}</div></th>`;
   }).join('');
 
   // Rows: ALL workers (disabled shown as fully unavailable)
@@ -915,21 +1009,29 @@ function renderPreFill(){
 
 // ── RENDER ALL SCHEDULES (stacked) ────────────────────────────────
 // firstCount = how many schedules come from original settings (rest = split fallback)
-function renderAll(y,m,fallbackUsed=false,firstCount=schedules.length){
+function renderAll(y,m,fallbackUsed=false,firstCount=schedules.length,split24Dates=null){
   renderPreFill();
   const mi=document.getElementById('mainInner');
   let notice='';
+  if(split24Dates&&split24Dates.length){
+    const dayList=split24Dates.map(d=>{const dd=+d.slice(8,10);return `<b>${dd} ${MSHORT[+d.slice(5,7)]}</b>`;}).join(', ');
+    notice+=`<div style="background:var(--yellow-bg);border:1px solid var(--yellow);border-radius:var(--r);padding:10px 14px;font-size:10px;font-family:'Fira Code',monospace;color:var(--yellow);margin-bottom:2px">
+      ⚠ Limit zmian 24h na pracownika uniemożliwił wygenerowanie grafiku z oryginalnymi ustawieniami. Zmiany 24h w dniach: ${dayList} zostały automatycznie podzielone na dniówkę (12h) + nockę (12h).
+    </div>`;
+  }
   if(fallbackUsed){
-    notice=`<div style="background:var(--yellow-bg);border:1px solid var(--yellow);border-radius:var(--r);padding:10px 14px;font-size:10px;font-family:'Fira Code',monospace;color:var(--yellow);margin-bottom:2px">
+    notice+=`<div style="background:var(--yellow-bg);border:1px solid var(--yellow);border-radius:var(--r);padding:10px 14px;font-size:10px;font-family:'Fira Code',monospace;color:var(--yellow);margin-bottom:2px">
       ⚠ Część grafików (${schedules.length-firstCount} szt.) wygenerowana z podziałem weekendów na zmiany 12h zamiast 24h — oryginalne ustawienia dały tylko ${firstCount} wynik(ów).
     </div>`;
   }
-  const exportAllBtn=`<div class="expall-wrap"><button class="expall-btn" onclick="exportXL(${y},${m})">⬇ Eksportuj wszystkie do Excel</button><button class="expall-btn" style="border-color:#c0392b;color:#c0392b" onclick="exportPDF(${y},${m})">⬇ Eksportuj wszystkie do PDF</button></div>`;
+  const dbgOn=document.getElementById('chkDebug')&&document.getElementById('chkDebug').checked;
+  const dbgBtn=dbgOn?`<button class="expall-btn" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-size:10px;padding:5px 10px" onclick="debugExport()" title="Kopiuje dane grafiku do schowka (do debugowania)">🐛 Kopiuj JSON</button><button class="expall-btn" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-size:10px;padding:5px 10px" onclick="debugImport()" title="Importuj dane z JSON">📥 Wklej JSON</button>`:'';
+  const exportAllBtn=`<div class="expall-wrap">${dbgBtn}<button class="expall-btn" onclick="exportXL(${y},${m})">⬇ Eksportuj wszystkie do Excel</button><button class="expall-btn" style="background:#c0392b;border-color:#c0392b;color:#fff" onclick="exportPDF(${y},${m})">⬇ Eksportuj wszystkie do PDF</button></div>`;
   let html=notice+exportAllBtn;
   schedules.forEach((_,i)=>{html+=`<div id="sb${i}"></div>`;});
   mi.innerHTML=html;
   // Store fallback info for renderSched badges
-  window._schedMeta={firstCount,fallbackUsed,y,m};
+  window._schedMeta={firstCount,fallbackUsed,y,m,split24Dates:split24Dates||null};
   schedules.forEach((_,i)=>renderSched(i,y,m));
 }
 
@@ -983,9 +1085,11 @@ function renderSched(idx,y,m){
   for(let d=1;d<=n;d++){
     const wd=dow(y,m,d);const we=wd===0||wd===6;
     const date=dstr(y,m,d);const hol=isHoliday(date);
-    const cls=[we?'weh':'',hol?'holh':''].filter(Boolean).join(' ');
+    const tdo=isTeamDayOff(date);
+    const cls=[we?'weh':'',hol?'holh':'',tdo?'tdoh':''].filter(Boolean).join(' ');
     const holName=hol?getHolidayName(date):'';
-    thead+=`<th${cls?' class="'+cls+'"':''}${hol?' title="'+holName+'"':''}><div>${d}${hol?'<span class="hol-star">★</span>':''}</div><div style="font-size:6px;opacity:.7">${DNS[wd]}</div></th>`;
+    const ttl=[hol?holName:'',tdo?'Dzień wolny zespołu':''].filter(Boolean).join(' · ');
+    thead+=`<th${cls?' class="'+cls+'"':''}${ttl?' title="'+ttl+'"':''}><div>${d}${hol?'<span class="hol-star">★</span>':''}${tdo?'<span class="tdo-mark">✕</span>':''}</div><div style="font-size:6px;opacity:.7">${DNS[wd]}</div></th>`;
   }
   thead+=`<th class="scol">Suma</th></tr></thead>`;
 
@@ -1118,6 +1222,292 @@ function applyCellType(type,slot){
 }
 document.addEventListener('click',()=>{document.getElementById('cellMenu').style.display='none';});
 
+// ── DIAGNOSTICS — why schedule generation failed ─────────────────
+function diagNoSchedule(y,m,shiftMode,minPerDay,cfg){
+  const n=dim(y,m);
+  const is8=shiftMode==='8h';
+  const activeW=workers.filter(w=>!(teamSession&&w.disabled));
+  const issues=[];
+  const hints=[];
+
+  // 1. No active workers
+  if(!activeW.length){
+    issues.push('Brak aktywnych pracowników — wszyscy są wyłączeni lub lista jest pusta.');
+    hints.push('Dodaj pracowników lub włącz wyłączonych (przycisk ◉/⊘).');
+    return diagRender(issues,hints);
+  }
+
+  // 2. Count shifts needed vs workers available per day
+  const dayStats=[];
+  for(let d=1;d<=n;d++){
+    const date=dstr(y,m,d);const wd=dow(y,m,d);
+    if(isTeamDayOff(date))continue;
+    const isWe=wd===0||wd===6;
+    let slotsNeeded=0;
+    if(is8){
+      const we8=document.getElementById('chk8hWe')&&document.getElementById('chk8hWe').checked;
+      if(wd>=1&&wd<=5||we8)slotsNeeded=minPerDay||1;
+    } else {
+      if(wd>=1&&wd<=5){
+        if(isHoliday(date)&&getHolMode(date))slotsNeeded=1; // 24h
+        else slotsNeeded=2; // D+N (or 1 if emergency)
+      } else {
+        const satS=wd===6?date:dstr(y,m,d-1);
+        const mo=weModes[satS]||'24h';
+        if(mo==='24h')slotsNeeded=1;
+        else if(mo==='split')slotsNeeded=2;
+        // wolny = 0
+      }
+    }
+    if(!slotsNeeded)continue;
+
+    const avail=activeW.filter(w=>{
+      const r=w.days[date];
+      if(r==='vac'||r==='off')return false;
+      if(r==='no-both')return false;
+      return true;
+    });
+    // Workers available for at least one type
+    const availD=activeW.filter(w=>{const r=w.days[date];return r!=='vac'&&r!=='off'&&r!=='no-d'&&r!=='no-both';});
+    const availN=activeW.filter(w=>{const r=w.days[date];return r!=='vac'&&r!=='off'&&r!=='no-n'&&r!=='no-both';});
+
+    dayStats.push({d,date,wd,isWe,slotsNeeded,avail:avail.length,availD:availD.length,availN:availN.length});
+  }
+
+  // 3. Days with 0 available workers
+  const zeroDays=dayStats.filter(s=>s.avail===0);
+  if(zeroDays.length){
+    issues.push(`W ${zeroDays.length} dniu/dniach żaden pracownik nie jest dostępny: ${zeroDays.map(s=>`<b>${s.d} ${MSHORT[m]}</b>`).join(', ')}.`);
+    hints.push('Usuń urlopy/niedostępności w tych dniach lub oznacz je jako <b>dzień wolny zespołu</b>.');
+  }
+
+  // 4. Days with fewer workers than slots needed
+  const shortDays=dayStats.filter(s=>s.avail>0&&s.avail<s.slotsNeeded);
+  if(shortDays.length){
+    issues.push(`W ${shortDays.length} dniu/dniach jest za mało pracowników na obsadzenie zmian: ${shortDays.slice(0,5).map(s=>`<b>${s.d} ${MSHORT[m]}</b> (${s.avail} dostępnych, potrzeba ${s.slotsNeeded})`).join(', ')}${shortDays.length>5?' i więcej...':''}.`);
+    hints.push('Zmniejsz liczbę zmian lub dodaj pracowników. W trybie 12/24h jeden pracownik może obsłużyć zmianę 24h automatycznie.');
+  }
+
+  // 5. No day-shift workers (for D+N mode)
+  if(!is8){
+    const noDayDays=dayStats.filter(s=>!s.isWe&&s.availD===0&&s.slotsNeeded>=2);
+    if(noDayDays.length){
+      issues.push(`Brak pracowników do dniówki w dniach: ${noDayDays.slice(0,5).map(s=>`<b>${s.d} ${MSHORT[m]}</b>`).join(', ')}. Wszyscy mają oznaczenie „bez dniówki" lub są niedostępni.`);
+      hints.push('Usuń ograniczenie „bez dniówki" (żółte) u co najmniej jednego pracownika w tych dniach.');
+    }
+    const noNightDays=dayStats.filter(s=>!s.isWe&&s.availN===0&&s.slotsNeeded>=2);
+    if(noNightDays.length){
+      issues.push(`Brak pracowników do nocki w dniach: ${noNightDays.slice(0,5).map(s=>`<b>${s.d} ${MSHORT[m]}</b>`).join(', ')}. Wszyscy mają oznaczenie „bez nocki" lub są niedostępni.`);
+      hints.push('Usuń ograniczenie „bez nocki" (pomarańczowe) u co najmniej jednego pracownika w tych dniach.');
+    }
+  }
+
+  // 6. Total hours vs capacity
+  const shifts=genShifts(y,m,shiftMode,minPerDay);
+  const totalShiftH=shifts.reduce((s,sh)=>s+sh.hours,0);
+  const maxCapacity=activeW.reduce((s,w)=>{
+    let cap=0;
+    for(let d=1;d<=n;d++){
+      const date=dstr(y,m,d);
+      if(isTeamDayOff(date))continue;
+      const r=w.days[date];
+      if(r!=='vac'&&r!=='off'&&r!=='no-both')cap+=is8?8:24;
+    }
+    return s+cap;
+  },0);
+
+  if(totalShiftH>maxCapacity){
+    issues.push(`Łączna liczba godzin do obsadzenia (<b>${totalShiftH}h</b>) przekracza sumaryczną dostępność pracowników (<b>${maxCapacity}h</b>).`);
+    hints.push('Dodaj pracowników, zmniejsz liczbę zmian lub usuń urlopy/niedostępności.');
+  }
+
+  // 7. Tolerance too low
+  if(cfg.tol<12&&activeW.length>1){
+    issues.push(`Odchylenie godzin ustawione na <b>${cfg.tol}h</b> — to bardzo niskie. Algorytm może nie znaleźć rozkładu, w którym różnica godzin między pracownikami mieści się w tym limicie.`);
+    hints.push(`Zwiększ „Max odchylenie godzin" do co najmniej <b>24h</b> (obecnie: ${cfg.tol}h).`);
+  }
+
+  // 8. Max consecutive limits too strict
+  if(cfg.maxN&&cfg.maxNVal<=1){
+    issues.push(`Limit max nocek z rzędu = <b>${cfg.maxNVal}</b>. Przy małym zespole algorytm może nie znaleźć rozwiązania.`);
+    hints.push('Zwiększ limit „Max nocek z rzędu" do 2–3 lub wyłącz to ograniczenie.');
+  }
+  if(cfg.maxD&&cfg.maxDVal<=1){
+    issues.push(`Limit max dniówek z rzędu = <b>${cfg.maxDVal}</b>. Przy małym zespole algorytm może nie znaleźć rozwiązania.`);
+    hints.push('Zwiększ limit „Max dniówek z rzędu" do 2–3 lub wyłącz to ograniczenie.');
+  }
+
+  // 9. reqDays / minDays conflicts
+  const reqConflicts=[];
+  activeW.forEach(w=>{
+    if(!w.reqDays||!w.reqDays.length)return;
+    for(let d=1;d<=n;d++){
+      const date=dstr(y,m,d);const wd=dow(y,m,d);
+      if(!w.reqDays.includes(wd))continue;
+      const r=w.days[date];
+      if(r==='vac'||r==='off'||r==='no-d'||r==='no-both'){
+        reqConflicts.push({name:w.name,d,reason:r});
+      }
+    }
+  });
+  if(reqConflicts.length){
+    const shown=reqConflicts.slice(0,3);
+    issues.push(`Konflikty wymaganych dni: ${shown.map(c=>`<b>${c.name}</b> dzień ${c.d} (${c.reason==='vac'?'urlop':c.reason==='off'?'niedostępny':'bez dniówki'})`).join(', ')}${reqConflicts.length>3?` i ${reqConflicts.length-3} więcej`:''}.`);
+    hints.push('Usuń urlopy/niedostępności w dniach wymaganych lub zmień ustawienia „Wymagane dni".');
+  }
+
+  // 10. Max 24h per worker too low
+  if(cfg.max24){
+    const total24=dayStats.filter(s=>s.slotsNeeded===1).length; // rough count of 24h slots
+    if(total24>0&&activeW.length>0&&cfg.max24Val*activeW.length<total24){
+      issues.push(`Limit max zmian 24h na pracownika (<b>${cfg.max24Val}</b>) przy ${activeW.length} pracownikach daje max ${cfg.max24Val*activeW.length} zmian 24h, a w miesiącu jest ich ~${total24}.`);
+      hints.push('Zwiększ limit „Max zmian 24h na pracownika" lub wyłącz to ograniczenie. Fallback (podział 24h → D+N) też nie pomógł.');
+    }
+  }
+
+  // If no specific issues found, generic message
+  if(!issues.length){
+    issues.push('Algorytm nie znalazł żadnego poprawnego grafiku w wyznaczonym czasie (30 sek). Ograniczenia mogą być zbyt ścisłe w kombinacji.');
+    hints.push('Zwiększ „Max odchylenie godzin", poluzuj limity nocek/dniówek z rzędu lub zmniejsz liczbę ograniczeń indywidualnych pracowników.');
+  }
+
+  return diagRender(issues,hints);
+}
+
+function diagRender(issues,hints){
+  const issueHtml=issues.map(i=>`<li style="margin-bottom:4px">${i}</li>`).join('');
+  const hintHtml=hints.map(h=>`<li style="margin-bottom:4px">${h}</li>`).join('');
+  return `<div class="diag-box">
+    <div class="diag-hdr">⚠ Nie udało się wygenerować grafiku</div>
+    <div class="diag-section">
+      <div class="diag-label">Wykryte problemy:</div>
+      <ul class="diag-list diag-issues">${issueHtml}</ul>
+    </div>
+    <div class="diag-section">
+      <div class="diag-label">Co możesz zrobić:</div>
+      <ul class="diag-list diag-hints">${hintHtml}</ul>
+    </div>
+  </div>`;
+}
+
+// ── DEBUG MODE ───────────────────────────────────────────────────
+function toggleDebugMode(on){
+  document.getElementById('debugPanel').style.display=on?'':'none';
+  localStorage.setItem('sm_debug',on?'1':'0');
+}
+
+function debugImport(){
+  const ta=document.createElement('textarea');
+  ta.style.cssText='width:100%;height:200px;font-family:"Fira Code",monospace;font-size:10px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:8px;resize:vertical';
+  ta.placeholder='Wklej tutaj JSON z debugExport()...';
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center';
+  const box=document.createElement('div');
+  box.style.cssText='background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px;width:90%;max-width:600px;box-shadow:0 8px 32px rgba(0,0,0,.3)';
+  box.innerHTML='<div style="font-size:13px;font-weight:700;margin-bottom:10px">📥 Importuj dane debugowania (JSON)</div>';
+  box.appendChild(ta);
+  const btns=document.createElement('div');
+  btns.style.cssText='display:flex;gap:8px;margin-top:10px;justify-content:flex-end';
+  btns.innerHTML=`<button class="genbtn" style="font-size:11px;padding:5px 14px;background:var(--surface2);border:1px solid var(--border);color:var(--text2)" id="dbgCancel">Anuluj</button><button class="genbtn" style="font-size:11px;padding:5px 14px" id="dbgApply">Zastosuj</button>`;
+  box.appendChild(btns);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});
+  box.querySelector('#dbgCancel').onclick=()=>overlay.remove();
+  box.querySelector('#dbgApply').onclick=()=>{
+    try{
+      const d=JSON.parse(ta.value);
+      applyDebugImport(d);
+      overlay.remove();
+      toast('✓ Dane debugowania zaimportowane');
+    }catch(e){toast('✗ Błędny JSON: '+e.message);}
+  };
+  ta.focus();
+}
+
+function applyDebugImport(d){
+  if(d.year&&d.month){
+    const mIdx=typeof d.month==='string'?MONTHS.indexOf(d.month):d.month;
+    if(mIdx>0)document.getElementById('selM').value=mIdx;
+    document.getElementById('selY').value=d.year;
+  }
+  if(d.settings){
+    const s=d.settings;
+    if(s.tolerance!=null)document.getElementById('selT').value=s.tolerance;
+    if(s.count!=null)document.getElementById('selC').value=s.count;
+    if(s.maxConsecNights!=null){document.getElementById('chkN').checked=true;document.getElementById('maxNVal').value=s.maxConsecNights;}
+    else document.getElementById('chkN').checked=false;
+    if(s.maxConsecDays!=null){document.getElementById('chkD').checked=true;document.getElementById('maxDVal').value=s.maxConsecDays;}
+    else document.getElementById('chkD').checked=false;
+  }
+  if(d.weModes)weModes={...d.weModes};
+  if(d.teamDaysOff)teamDaysOff={...d.teamDaysOff};
+  if(d.workers){
+    workers=d.workers.map(w=>({
+      id:w.id,name:w.name,color:w.color||COLORS[w.id%COLORS.length],
+      _open:false,days:w.days||{},minDays:w.minDays||0,reqDays:w.reqDays||[],
+      disabled:!!w.disabled
+    }));
+    wCtr=Math.max(...workers.map(w=>w.id),0)+1;
+    workers.forEach(w=>{cmode[w.id]=cmode[w.id]||'vac';});
+  }
+  if(d.schedules){
+    schedules=d.schedules.map(s=>s.entries||s);
+  }
+  const {y,m}=ym();
+  buildWeModes();renderWorkers();renderWEGrid();
+  updateHolidayBar(y,m);updateTeamDaysOffBar(y,m);
+  renderPreFill();
+  if(schedules.length){
+    window._schedMeta={y,m,fallbackUsed:false,firstCount:schedules.length};
+    renderAll(y,m,false,schedules.length);
+  }
+}
+
+// ── DEBUG EXPORT ──────────────────────────────────────────────────
+function debugExport(){
+  const {y,m}=ym();
+  const n=dim(y,m);
+  const shiftMode=document.getElementById('selShiftMode')?.value||'12/24h';
+  const data={
+    month:MONTHS[m],year:y,days:n,shiftMode,
+    settings:{
+      tolerance:+document.getElementById('selT')?.value,
+      count:+document.getElementById('selC')?.value,
+      maxConsecNights:document.getElementById('chkN')?.checked?+document.getElementById('maxNVal')?.value:null,
+      maxConsecDays:document.getElementById('chkD')?.checked?+document.getElementById('maxDVal')?.value:null,
+      maxConsecSundays:document.getElementById('chkMaxSun')?.checked||false,
+      minPerDay:shiftMode==='8h'?+document.getElementById('minPerDay')?.value:null,
+      we8h:shiftMode==='8h'&&document.getElementById('chk8hWe')?.checked,
+    },
+    weModes:{...weModes},
+    teamDaysOff:{...teamDaysOff},
+    workers:workers.map(w=>{
+      const days={};
+      for(let d=1;d<=n;d++){const k=dstr(y,m,d);if(w.days[k])days[k]=w.days[k];}
+      return{id:w.id,name:w.name,minDays:w.minDays||0,reqDays:w.reqDays||[],disabled:!!w.disabled,days};
+    }),
+    schedules:schedules.map((s,i)=>{
+      const hrs={};
+      workers.forEach(w=>hrs[w.id]={d:0,n:0,t24:0,vac:vacH(w,y,m)});
+      s.forEach(e=>{
+        if(!hrs[e.wid])hrs[e.wid]={d:0,n:0,t24:0,vac:0};
+        if(e.type==='dzien')hrs[e.wid].d+=e.hours||12;
+        else if(e.type==='noc')hrs[e.wid].n+=e.hours||12;
+        else hrs[e.wid].t24+=e.hours||24;
+      });
+      const totals={};
+      for(const[id,h]of Object.entries(hrs))totals[id]={...h,total:h.d+h.n+h.t24+h.vac};
+      return{index:i,entries:s,totals,deviation:schedDeviation(s,y,m)};
+    }),
+  };
+  const json=JSON.stringify(data,null,2);
+  navigator.clipboard.writeText(json).then(()=>toast('📋 Dane debugowania skopiowane do schowka')).catch(()=>{
+    const w2=window.open('','_blank','width=800,height=600');
+    if(w2){w2.document.write('<pre>'+json.replace(/</g,'&lt;')+'</pre>');}
+  });
+}
+
 // ── PDF EXPORT ─────────────────────────────────────────────────────
 function exportPDF(y,m,onlyIdx){
   const idxs=onlyIdx!==undefined?[onlyIdx]:[...Array(schedules.length).keys()];
@@ -1160,6 +1550,7 @@ function exportPDF(y,m,onlyIdx){
 <style>
   body{font-family:Arial,sans-serif;margin:0;padding:10mm}
   @page{size:A4 landscape;margin:10mm}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
   @media print{body{padding:0}}
 </style></head><body>${body}</body></html>`;
   const blob=new Blob([html],{type:'text/html;charset=utf-8'});
@@ -1710,7 +2101,7 @@ async function doCreateTeamNew(){
     await db.collection('teams').doc(tid).set({
       name,passwordHash:pwh,
       createdAt:firebase.firestore.FieldValue.serverTimestamp(),
-      workers:[],weModes:{},wCtr:0,
+      workers:[],weModes:{},teamDaysOff:{},wCtr:0,
       settings:{month:nextM.getMonth()+1,year:nextM.getFullYear()},
       genSettings:{shiftMode:(document.getElementById('tsCreateMode')&&document.getElementById('tsCreateMode').value)||'12h',maxN:true,maxNVal:3,maxD:true,maxDVal:3,tol:24,minPerDay:1,count:1},
       approvedSchedules:{},
@@ -1794,7 +2185,7 @@ function doLogout(){
   teamSession=null;
   localStorage.removeItem('sm_team');
   window.location.hash='';
-  workers=[];schedules=[];weModes={};wCtr=0;
+  workers=[];schedules=[];weModes={};teamDaysOff={};wCtr=0;
   document.getElementById('teamBar').style.display='none';
   document.getElementById('approvedBanner').innerHTML='';
   document.getElementById('mainInner').innerHTML='';
@@ -1831,7 +2222,7 @@ function startLocalMode(){
 }
 
 function returnToLogin(){
-  workers=[];schedules=[];weModes={};wCtr=0;
+  workers=[];schedules=[];weModes={};teamDaysOff={};wCtr=0;
   document.getElementById('localBar').style.display='none';
   const cb2=document.getElementById('clearBtn');if(cb2)cb2.style.display='none';
   const lb2=document.getElementById('loadBtn');if(lb2)lb2.style.display='none';
@@ -2018,6 +2409,7 @@ function applyTeamData(d){
   }
   wCtr=d.wCtr||workers.length;
   if(d.weModes)weModes=d.weModes;
+  if(d.teamDaysOff)teamDaysOff=d.teamDaysOff;
   if(d.genSettings){
     const g=d.genSettings;
     const sm=document.getElementById('selShiftMode');if(sm)sm.value=g.shiftMode||'12h';
@@ -2034,6 +2426,8 @@ function applyTeamData(d){
     const chkMs=document.getElementById('chkMaxSun');if(chkMs)chkMs.checked=g.maxSun!==false;
     const msw=document.getElementById('maxSunWrap');if(msw)msw.style.display=g.we8h?'':'none';
     const wew=document.getElementById('weWrap8h');if(wew)wew.style.display=(g.shiftMode==='8h')?'':'none';
+    const chk24=document.getElementById('chkMax24');if(chk24){chk24.checked=!!g.max24;document.getElementById('max24Wrap').style.display=g.max24?'':'none';}
+    const m24v=document.getElementById('max24Val');if(m24v)m24v.value=g.max24Val||4;
   }
   const {y:cy,m:cm}=ym();const cmk=cy+'-'+cm;
   const curApproved=d.approvedSchedules&&d.approvedSchedules[cmk]&&!d.approvedSchedules[cmk].revoked;
@@ -2049,8 +2443,8 @@ function applyTeamData(d){
     }
     buildWeModes();renderWorkers();renderWEGrid();
     if(ps&&ps.length&&window._schedMeta){
-      const {y,m,fallbackUsed,firstCount}=window._schedMeta;
-      renderAll(y,m,fallbackUsed||false,firstCount||schedules.length);
+      const {y,m,fallbackUsed,firstCount,split24Dates:s24d}=window._schedMeta;
+      renderAll(y,m,fallbackUsed||false,firstCount||schedules.length,s24d||null);
     } else if(ps&&ps.length){
       renderAll(cy,cm,false,schedules.length);
     }
@@ -2060,7 +2454,7 @@ function applyTeamData(d){
   renderStaleNotice();
   const {y:_hy,m:_hm}=ym();
   fetchHolidays(_hy).then(()=>{updateHolidayBar(_hy,_hm);renderPreFill();});
-  updateHolidayBar(_hy,_hm);
+  updateHolidayBar(_hy,_hm);updateTeamDaysOffBar(_hy,_hm);
 }
 
 async function saveToFirestore(){
@@ -2072,7 +2466,7 @@ async function saveToFirestore(){
     const {y,m}=ym();const mk=y+'-'+m;
     const upd={
       workers:workers.map(w=>({id:w.id||null,name:w.name||null,color:w.color||null,days:w.days||{},minDays:w.minDays||0,reqDays:w.reqDays||[],login:w.login||null,disabled:!!w.disabled})),
-      wCtr,weModes,settings:{month:m,year:y},
+      wCtr,weModes,teamDaysOff,settings:{month:m,year:y},
       genSettings:{
         shiftMode:document.getElementById('selShiftMode').value,
         maxN:document.getElementById('chkN').checked,
@@ -2083,6 +2477,8 @@ async function saveToFirestore(){
         minPerDay:+document.getElementById('minPerDay').value||1,
         we8h:!!(document.getElementById('chk8hWe')&&document.getElementById('chk8hWe').checked),
         maxSun:!!(document.getElementById('chkMaxSun')&&document.getElementById('chkMaxSun').checked),
+        max24:!!(document.getElementById('chkMax24')&&document.getElementById('chkMax24').checked),
+        max24Val:+(document.getElementById('max24Val')&&document.getElementById('max24Val').value)||4,
         count:+document.getElementById('selC').value
       }
     };

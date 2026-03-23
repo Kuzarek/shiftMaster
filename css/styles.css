@@ -154,9 +154,9 @@ input:focus,select:focus{border-color:var(--acc)}
 .sched-hdr{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border);background:var(--surface2)}
 .sched-num{font-family:'Fira Code',monospace;font-size:12px;font-weight:700;color:var(--acc)}
 .sched-meta{font-family:'Fira Code',monospace;font-size:11px;color:var(--muted);flex:1}
-.expbtn{background:var(--surface);border:1px solid var(--border);border-radius:5px;color:var(--text);cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;padding:4px 9px;text-transform:uppercase;transition:all .2s;flex-shrink:0}
+.expbtn{background:var(--surface);border:1px solid var(--border);border-radius:5px;color:var(--text);cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;letter-spacing:.5px;padding:4px 9px;text-transform:uppercase;transition:all .2s;flex-shrink:0;margin-left:4px}
 .expbtn:hover{border-color:var(--green);color:var(--green)}
-.expall-wrap{display:flex;justify-content:flex-end}
+.expall-wrap{display:flex;justify-content:flex-end;gap:8px}
 .expall-btn{background:var(--acc);border:none;border-radius:var(--rs);color:#fff;cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;letter-spacing:.5px;padding:7px 14px;text-transform:uppercase;transition:all .2s}
 .expall-btn:hover{background:var(--acc-h);box-shadow:0 4px 12px rgba(108,99,255,.3)}
 
@@ -228,6 +228,16 @@ td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
 
 .alert{background:var(--red-bg);border:1px solid var(--red);border-radius:var(--r);color:var(--red);padding:11px 14px;font-size:10px;font-family:'Fira Code',monospace}
 [data-theme="dark"] .alert{background:var(--red-dim)}
+/* Diagnostic box — detailed generation failure report */
+.diag-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;font-family:'Fira Code',monospace;font-size:10px;color:var(--text2);line-height:1.7}
+.diag-hdr{font-size:14px;font-weight:700;color:var(--red);margin-bottom:14px;display:flex;align-items:center;gap:6px}
+.diag-section{margin-bottom:12px}
+.diag-label{font-size:10px;font-weight:700;color:var(--text);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px}
+.diag-list{margin:0;padding-left:18px}
+.diag-issues li{color:var(--red)}
+.diag-issues li b{color:var(--text)}
+.diag-hints li{color:var(--green)}
+.diag-hints li b{color:var(--text)}
 .spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
@@ -484,6 +494,25 @@ th.holh{background:var(--red-bg)!important;color:var(--red)!important}
 [data-theme="dark"] .pf-col-hol{background:var(--red-dim)!important}
 .pf-hol-star{font-size:6px;color:var(--red);vertical-align:top;line-height:1.2}
 .pf-dis-tag{font-family:'Fira Code',monospace;font-size:8px;color:var(--red);margin-left:3px}
+
+/* ── TEAM DAYS OFF ────────────────────────────────────────────── */
+/* Mini-calendar: team day off indicator (strikethrough background) */
+.cald.rtdo{position:relative;background:var(--surface2)}
+.cald.rtdo::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(135deg,transparent,transparent 2px,var(--muted2) 2px,var(--muted2) 3px);opacity:.25;border-radius:inherit;pointer-events:none}
+.rtdo-dot{background:var(--surface2)!important;border-color:var(--muted)!important;position:relative}
+.rtdo-dot::after{content:'';position:absolute;inset:2px;background:repeating-linear-gradient(135deg,transparent,transparent 1px,var(--muted) 1px,var(--muted) 2px);border-radius:1px}
+/* Schedule table — team day off column header */
+th.tdoh{background:var(--surface2)!important;color:var(--muted)!important;text-decoration:line-through}
+[data-theme="dark"] th.tdoh{background:var(--surface3,#333)!important;color:var(--muted)!important}
+.tdo-mark{display:inline-block;font-size:6px;vertical-align:top;color:var(--muted);line-height:1.2}
+/* Pre-fill table */
+.pf-col-tdo{background:var(--surface2)!important;color:var(--muted)!important}
+[data-theme="dark"] .pf-col-tdo{background:var(--surface3,#333)!important}
+.pf-tdo-mark{font-size:6px;color:var(--muted);vertical-align:top;line-height:1.2}
+/* Team days off calendar in sidebar */
+.tdo-toggle{display:flex;align-items:center;gap:6px}
+#tdoSection .calgrid{cursor:pointer}
+#tdoSection .cald:hover{opacity:.7}
 
 /* ── DRAG-AND-DROP WORKER SORTING ──────────────────────────────── */
 .wdrag-handle{cursor:grab;color:var(--muted2);font-size:14px;line-height:1;padding:0 2px;user-select:none;flex-shrink:0;transition:color .1s}

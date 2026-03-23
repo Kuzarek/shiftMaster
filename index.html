@@ -156,6 +156,7 @@
       </div>
     </div>
     <div id="holSection"></div>
+    <div id="tdoSection"></div>
     <div>
       <div class="sec">Pracownicy</div>
       <div id="wlist" style="display:flex;flex-direction:column;gap:5px"></div>
@@ -177,6 +178,8 @@
         <input type="number" id="maxNVal" value="3" min="1" max="7" style="width:50px;margin-left:24px;margin-top:-4px">
         <label class="chkr"><input type="checkbox" id="chkD" checked><span class="chkl">Max dniówek z rzędu</span></label>
         <input type="number" id="maxDVal" value="3" min="1" max="7" style="width:50px;margin-left:24px;margin-top:-4px">
+        <label class="chkr"><input type="checkbox" id="chkMax24" onchange="document.getElementById('max24Wrap').style.display=this.checked?'':'none'"><span class="chkl">Max zmian 24h na pracownika</span></label>
+        <div id="max24Wrap" style="display:none"><input type="number" id="max24Val" value="4" min="1" max="15" style="width:50px;margin-left:24px;margin-top:-4px"><div class="chkn" style="margin-left:24px">Jeśli limit uniemożliwi generowanie — zmiany 24h zostaną automatycznie podzielone na D+N</div></div>
         <div><label>Liczba grafików</label>
           <select id="selC"><option value="1" selected>1</option><option value="3">3</option><option value="5">5</option><option value="10">10</option></select>
         </div>
@@ -192,6 +195,14 @@
         <div id="weWrap8h" style="display:none"><label class="chkr"><input type="checkbox" id="chk8hWe" onchange="document.getElementById('maxSunWrap').style.display=this.checked?'':'none'"><span class="chkl">Pracujące weekendy</span></label><div class="chkn" style="margin-left:20px">Generuje zmiany 8h również w Sb-Nd</div><div id="maxSunWrap" style="display:none;margin-top:6px"><label class="chkr"><input type="checkbox" id="chkMaxSun" checked><span class="chkl">Max 2 niedziele pod rząd</span></label><div class="chkn" style="margin-left:20px">Pracownik nie może pracować więcej niż 2 kolejne niedziele</div></div></div>
         <div><label>Max odchylenie godzin</label><input type="number" id="selT" value="24" min="0" max="120"></div>
         <label class="chkr"><input type="checkbox" id="chkAutoSave" checked onchange="localStorage.setItem('sm_autosave',this.checked?'1':'0')"><span class="chkl">Autozapis</span></label>
+        <label class="chkr"><input type="checkbox" id="chkDebug" onchange="toggleDebugMode(this.checked)"><span class="chkl">Tryb debugowania</span></label>
+        <div id="debugPanel" style="display:none;margin-left:4px;padding:8px;border:1px dashed var(--muted);border-radius:var(--rs);background:var(--surface2)">
+          <div style="font-family:'Fira Code',monospace;font-size:8px;color:var(--muted);margin-bottom:6px">Narzędzia debug</div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <button class="genbtn" style="font-size:10px;padding:4px 8px;background:var(--surface);border:1px solid var(--border);color:var(--text2)" onclick="debugExport()">📋 Kopiuj JSON</button>
+            <button class="genbtn" style="font-size:10px;padding:4px 8px;background:var(--surface);border:1px solid var(--border);color:var(--text2)" onclick="debugImport()">📥 Wklej JSON</button>
+          </div>
+        </div>
         <button class="genbtn" style="font-size:12px;padding:6px 12px;margin-top:2px" onclick="saveW()">💾 Zapisz zmiany</button>
       </div>
     </div>
