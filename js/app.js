@@ -924,7 +924,7 @@ function renderAll(y,m,fallbackUsed=false,firstCount=schedules.length){
       ⚠ Część grafików (${schedules.length-firstCount} szt.) wygenerowana z podziałem weekendów na zmiany 12h zamiast 24h — oryginalne ustawienia dały tylko ${firstCount} wynik(ów).
     </div>`;
   }
-  const exportAllBtn=`<div class="expall-wrap"><button class="expall-btn" onclick="exportXL(${y},${m})">⬇ Eksportuj wszystkie do Excel</button></div>`;
+  const exportAllBtn=`<div class="expall-wrap"><button class="expall-btn" onclick="exportXL(${y},${m})">⬇ Eksportuj wszystkie do Excel</button><button class="expall-btn" style="border-color:#c0392b;color:#c0392b" onclick="exportPDF(${y},${m})">⬇ Eksportuj wszystkie do PDF</button></div>`;
   let html=notice+exportAllBtn;
   schedules.forEach((_,i)=>{html+=`<div id="sb${i}"></div>`;});
   mi.innerHTML=html;
@@ -962,6 +962,7 @@ function renderSched(idx,y,m){
     ${revokedBadge}${modeBadge}
     <span class="sched-meta">${MONTHS[m]} ${y} · śr. ${avgH}h · odch. ${maxH-minH}h · ${sched.length} zmian</span>
     <button class="expbtn" onclick="exportXL(${y},${m},${idx})">⬇ Excel</button>
+    <button class="expbtn" style="border-color:#c0392b;color:#c0392b" onclick="exportPDF(${y},${m},${idx})">⬇ PDF</button>
     ${(()=>{const {y:ry,m:rm}=ym();const rmk=ry+'-'+rm;const aa=_cachedAppSch&&_cachedAppSch[rmk]&&!_cachedAppSch[rmk].revoked;return teamSession&&!aa&&canDo('approve');})()
       ?`<button class="expbtn" style="border-color:var(--green);color:var(--green)" onclick="approveSchedule(${idx})">✓ Zatwierdź</button>`:''}
   </div>`;
@@ -1116,6 +1117,57 @@ function applyCellType(type,slot){
   autoSave();
 }
 document.addEventListener('click',()=>{document.getElementById('cellMenu').style.display='none';});
+
+// ── PDF EXPORT ─────────────────────────────────────────────────────
+function exportPDF(y,m,onlyIdx){
+  const idxs=onlyIdx!==undefined?[onlyIdx]:[...Array(schedules.length).keys()];
+  const n=dim(y,m);
+  const ROMAN=['I','II','III'];
+  let body='';
+  idxs.forEach((si,ii)=>{
+    const sched=schedules[si];
+    const lkp={};sched.forEach(e=>{lkp[`${e.wid}_${e.date}`]=e;});
+    let rows='';
+    workers.forEach(w=>{
+      let wt=0;let cells='';
+      for(let d=1;d<=n;d++){
+        const date=dstr(y,m,d);const wd=dow(y,m,d);const we=wd===0||wd===6;
+        const r=w.days[date];const ent=lkp[`${w.id}_${date}`];const type=ent?ent.type:undefined;
+        let bg='';let lbl='';
+        if(r==='vac'){lbl=we?'U':'U';bg=we?'#e8e0ff':'#ffff00';if(!we)wt+=8;}
+        else if(r==='off'){lbl='—';bg='#ffc000';}
+        else if(type==='dzien'){const dh=ent.hours||12;lbl=ent.slot?ROMAN[ent.slot-1]:'D';bg='#92d050';wt+=dh;}
+        else if(type==='noc'){lbl='N';bg='#00b0f0';wt+=12;}
+        else if(type==='24h'){lbl='24h';bg='#87CEEB';wt+=24;}
+        else{lbl='';bg=we?'#f0f0f0':'';}
+        cells+=`<td style="background:${bg};border:1px solid #aaa;padding:1px 2px;text-align:center;font-size:7pt;min-width:18px">${lbl}</td>`;
+      }
+      rows+=`<tr><td style="border:1px solid #aaa;padding:1px 4px;white-space:nowrap;font-size:8pt">${w.name}</td>${cells}<td style="border:1px solid #aaa;padding:1px 4px;text-align:center;font-weight:700;font-size:8pt">${wt}h</td></tr>`;
+    });
+    let hdrCols='';
+    for(let d=1;d<=n;d++){
+      const wd=dow(y,m,d);const we=wd===0||wd===6;
+      hdrCols+=`<th style="border:1px solid #aaa;padding:1px 2px;text-align:center;background:${we?'#cc0000':'#d9d9d9'};color:${we?'#fff':'#000'};font-size:7pt;min-width:18px">${d}<br><span style="font-size:5pt">${DNS[wd]}</span></th>`;
+    }
+    const pbr=ii<idxs.length-1?'<div style="page-break-after:always"></div>':'';
+    body+=`<h2 style="background:#4a5426;color:#fff;font-family:Arial;font-size:11pt;padding:6px 10px;margin:0 0 4px;border-radius:3px">Grafik ${si+1} — ${MONTHS[m]} ${y}</h2>
+<table style="border-collapse:collapse;width:100%;font-family:Arial">
+  <thead><tr><th style="border:1px solid #aaa;padding:1px 4px;background:#d9d9d9;text-align:left;font-size:8pt">Pracownik</th>${hdrCols}<th style="border:1px solid #aaa;padding:1px 4px;background:#d9d9d9;text-align:center;font-size:8pt">Suma</th></tr></thead>
+  <tbody>${rows}</tbody>
+</table>${pbr}`;
+  });
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Grafik ${MONTHS[m]} ${y}</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:10mm}
+  @page{size:A4 landscape;margin:10mm}
+  @media print{body{padding:0}}
+</style></head><body>${body}</body></html>`;
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const w2=window.open(url,'_blank','width=900,height=700');
+  if(!w2){URL.revokeObjectURL(url);toast('⚠ Zezwól na wyskakujące okna, aby eksportować PDF');return;}
+  w2.addEventListener('load',()=>{w2.print();URL.revokeObjectURL(url);},{once:true});
+}
 
 // ── EXCEL EXPORT — HTML-table format (colors work in Excel/LibreOffice) ──
 function exportXL(y,m,onlyIdx){
