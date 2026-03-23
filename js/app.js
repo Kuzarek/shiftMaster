@@ -686,6 +686,15 @@ function backtrack(shifts,idx,sched,results,limit,cfg){
   }
 }
 
+// ── DEVIATION HELPER ──────────────────────────────────────────────
+function schedDeviation(sched,y,m){
+  const h={};
+  workers.forEach(w=>{h[w.id]=vacH(w,y,m);});
+  sched.forEach(e=>{if(h[e.wid]!==undefined)h[e.wid]+=(e.hours||(e.type==='24h'?24:12));});
+  const vals=Object.values(h);
+  return Math.max(...vals)-Math.min(...vals);
+}
+
 // ── RUNNER ────────────────────────────────────────────────────────
 function runGen(){
   const {y,m}=ym();const mk=y+'-'+m;
@@ -771,6 +780,8 @@ function runGen(){
       if(!schedules.length){
         document.getElementById('mainInner').innerHTML='<div class="alert">⚠ Nie udało się wygenerować grafiku w wyznaczonym czasie. Zwiększ odchylenie godzin lub zmniejsz ograniczenia.</div>';
       } else {
+        // Sort by lowest hour deviation (best schedules first)
+        schedules.sort((a,b)=>schedDeviation(a,y,m)-schedDeviation(b,y,m));
         renderAll(y,m,false,schedules.length);
         autoSave();
       }
