@@ -430,7 +430,11 @@ function buildQuotas(y,m,shiftMode,minPerDay){
       else if(mo==='split'){weH+=24;}
     }
   }
-  const activeW=teamSession?workers.filter(w=>!w.disabled):workers;
+  const activeW=(teamSession?workers.filter(w=>!w.disabled):workers).filter(w=>{
+    // Exclude workers who have no available day in the entire month
+    for(let d=1;d<=dim(y,m);d++){const r=w.days[dstr(y,m,d)];if(r!=='off'&&r!=='vac')return true;}
+    return false;
+  });
   const numW=activeW.length;
   const dH=is8?8:12;
   const totalH=wdayDzien*mpd*dH+wdayNoc*12+weH;
