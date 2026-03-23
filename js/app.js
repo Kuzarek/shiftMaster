@@ -887,7 +887,8 @@ function renderSched(idx,y,m){
   const tots=workers.map(w=>{const h=hrs[w.id];return{w,total:h.d+h.n+h.t24+h.vac,...h};});
   const maxH=Math.max(...tots.map(t=>t.total),1);
   const minH=Math.min(...tots.map(t=>t.total));
-  const avgH=Math.round(tots.reduce((s,t)=>s+t.total,0)/tots.length);
+  const activeTots=tots.filter(t=>t.total>0);
+  const avgH=activeTots.length?Math.round(activeTots.reduce((s,t)=>s+t.total,0)/activeTots.length):0;
   const lkp={};sched.forEach(e=>{lkp[`${e.wid}_${e.date}`]=e;});
   const ROMAN=['I','II','III'];
 
@@ -2204,7 +2205,8 @@ function showApprovedSchedule(mk,which){
     });
     const tots=aWorkers.map(w=>{const h=hrs[w.id];return{w,total:h.d+h.n+h.t24+h.vac,...h};});
     const maxH=Math.max(...tots.map(t=>t.total),1);
-    const avgH=Math.round(tots.reduce((s,t)=>s+t.total,0)/tots.length);
+    const activeTots=tots.filter(t=>t.total>0);
+    const avgH=activeTots.length?Math.round(activeTots.reduce((s,t)=>s+t.total,0)/activeTots.length):0;
     const lkp={};sched.forEach(e=>{lkp[`${e.wid}_${e.date}`]=e;});
     const ROMAN=['I','II','III'];
 
