@@ -822,40 +822,48 @@ function runGen(){
 
       schedules=finalResults;
 
-      // ── Fallback 2: if max24 is active and still no schedules, split 24h → D+N ──
+      // ── Fallback 2: if max24 is active and still no schedules, split excess 24h → D+N ──
       if(!schedules.length&&max24On){
-        // Generate shifts but replace ALL 24h with D+N pairs
-        const savedModes2=weModes;
-        const splitModes2={};
-        Object.keys(origWeModes).forEach(k=>splitModes2[k]='split');
-        weModes=splitModes2;
+        const activeCount=(teamSession?workers.filter(w=>!w.disabled):workers).length;
+        const capacity=max24Val*activeCount;
+        // Generate original shifts to find all 24h dates
+        const allOrig=genShifts(y,m,shiftMode);
+        const all24=allOrig.filter(s=>s.type==='24h');
 
-        const allShiftsSplit24=genShifts(y,m,shiftMode).map(s=>{
-          if(s.type==='24h'){
-            split24Dates.push(s.date);
-            return null; // mark for replacement
+        if(all24.length>capacity){
+          // Sort 24h shifts: split the excess ones (prefer splitting days with most available workers)
+          const scored24=[...all24].map(s=>{
+            const avail=workers.filter(w=>{
+              if(teamSession&&w.disabled)return false;
+              const r=w.days[s.date];return r!=='vac'&&r!=='off'&&r!=='no-both';
+            }).length;
+            return {...s,avail};
+          }).sort((a,b)=>b.avail-a.avail); // most available first = best candidates to split (need 2 workers)
+
+          const toSplit=new Set(scored24.slice(0,all24.length-capacity).map(s=>s.date));
+          split24Dates=[...toSplit];
+
+          // Build new shift list: keep 24h for non-split dates, D+N for split dates
+          const newShifts=[];
+          allOrig.forEach(s=>{
+            if(s.type==='24h'&&toSplit.has(s.date)){
+              newShifts.push({date:s.date,type:'dzien',hours:12});
+              newShifts.push({date:s.date,type:'noc',hours:12});
+            } else {
+              newShifts.push(s);
+            }
+          });
+          newShifts.sort((a,b)=>a.date.localeCompare(b.date)||(a.type==='dzien'?-1:b.type==='dzien'?1:0));
+
+          const {prefilled:pfS24,remaining:remS24}=prefillReqDays(newShifts,y,m);
+          const cfgS24={...baseCfg,quotas:buildQuotas(y,m,shiftMode),_deadline:Date.now()+30000};
+          const resultsS24=[];
+          backtrack(remS24,0,[...pfS24],resultsS24,count,cfgS24);
+
+          if(resultsS24.length>0){
+            split24Used=true;
+            schedules=resultsS24;
           }
-          return s;
-        }).filter(Boolean);
-        // Add D+N pairs for each removed 24h
-        const uniqueDates=[...new Set(split24Dates)];
-        uniqueDates.forEach(date=>{
-          allShiftsSplit24.push({date,type:'dzien',hours:12});
-          allShiftsSplit24.push({date,type:'noc',hours:12});
-        });
-        allShiftsSplit24.sort((a,b)=>a.date.localeCompare(b.date)||(a.type==='dzien'?-1:b.type==='dzien'?1:0));
-
-        const {prefilled:pfS24,remaining:remS24}=prefillReqDays(allShiftsSplit24,y,m);
-        const cfgS24={...baseCfg,max24:false,quotas:buildQuotas(y,m,shiftMode),_deadline:Date.now()+30000};
-        const resultsS24=[];
-        backtrack(remS24,0,[...pfS24],resultsS24,count,cfgS24);
-
-        weModes=savedModes2;
-
-        if(resultsS24.length>0){
-          split24Used=true;
-          schedules=resultsS24;
-          split24Dates=uniqueDates;
         }
       }
 
