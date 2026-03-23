@@ -211,7 +211,7 @@ function renderWorkers(){
 }
 let _wDragSrc=null;
 function _wDragStart(e){_wDragSrc=+this.dataset.wid;this.classList.add('wdrag-src');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',this.dataset.wid);}
-function _wDragOver(e){if(!_wDragSrc||+this.dataset.wid===_wDragSrc)return;e.preventDefault();e.dataTransfer.dropEffect='move';this.classList.add('wdrag-over');}
+function _wDragOver(e){if(_wDragSrc===null||+this.dataset.wid===_wDragSrc)return;e.preventDefault();e.dataTransfer.dropEffect='move';this.classList.add('wdrag-over');}
 function _wDragLeave(e){if(!e.relatedTarget||!this.contains(e.relatedTarget))this.classList.remove('wdrag-over');}
 function _wDrop(e){
   e.preventDefault();this.classList.remove('wdrag-over');
