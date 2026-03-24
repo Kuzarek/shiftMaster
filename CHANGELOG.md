@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.2] — 2026-03-24
+
+### Nowe funkcje
+
+- **Dni wolne dla zespołu** — możliwość oznaczania dni wolnych na poziomie całego zespołu (team days off), które są respektowane podczas generowania grafiku.
+
+- **Tryb debugowania** — włączany z panelu opcji, wyświetla szczegółowe diagnostyki przebiegu generowania (logi, powody odrzuceń, statystyki iteracji).
+
+- **Limit max 24h** — nowa opcja ograniczająca maksymalną liczbę zmian 24h przydzielanych jednemu pracownikowi w miesiącu.
+
+- **Diagnostyki generowania** — po generowaniu dostępny jest rozszerzony raport z przyczyn niepowodzeń i ostrzeżeń.
+
+- **Tab „Zmiany" w modalu kontaktu** — historia wersji dostępna bezpośrednio w aplikacji.
+
+### Naprawione błędy
+
+- **Podział zmian 24h przy max24** — przy przekroczeniu limitu dzielono wszystkie zmiany 24h zamiast tylko nadmiarowych. Naprawiono na podział wyłącznie tych powyżej limitu.
+
+### Refaktoryzacja
+
+- **Podział kodu na moduły** — monolityczny `app.js` podzielony na osobne pliki: `schedule/` (generator, kwoty, punktacja, ograniczenia, symulowane wyżarzanie, diagnostyki), `render/` (renderer grafiku, menu kontekstowe), `export/` (Excel, PDF), `firebase/` (auth, teams), `sync/` (Firestore), oraz `state.js`, `workers.js`, `utils.js`, `theme.js`, `tutorial.js`, `debug.js`, `constants.js`, `init.js`.
+
+---
+
 ## [1.1.1] — 2026-03-23
 
 ### Naprawione błędy

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ShiftMaster v1.1.1 — Generator Grafiku</title>
+<title>ShiftMaster v1.2 — Generator Grafiku</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -16,7 +16,7 @@
   <div style="text-align:center">
     <div class="logo" style="margin:0 auto 8px;width:48px;height:48px;font-size:24px;border-radius:14px">⚡</div>
     <h1 style="font-size:22px;font-weight:800">Shift<span style="color:var(--acc)">Master</span></h1>
-    <div class="subtitle" style="margin-bottom:4px">Generator grafiku · v1.1.1</div>
+    <div class="subtitle" style="margin-bottom:4px">Generator grafiku · v1.2</div>
   </div>
   <div class="login-box">
     <div class="login-tabs">
@@ -95,7 +95,7 @@
 <div class="tut-overlay" id="tutOverlay" style="display:none"></div>
 <header>
   <div class="logo">⚡</div>
-  <div><h1>Shift<span>Master</span></h1><div class="subtitle">Generator grafiku · v1.1.1</div></div>
+  <div><h1>Shift<span>Master</span></h1><div class="subtitle">Generator grafiku · v1.2</div></div>
   <div class="hacts">
     <span class="toast" id="toast"></span>
     <button class="thbtn" onclick="togTheme()" id="thBtn">🌙</button>
@@ -108,12 +108,67 @@
   </div>
 </header>
 <div id="contactModal" onclick="if(event.target===this)hideContact()" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.45);align-items:center;justify-content:center">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:28px 32px;min-width:260px;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,.25);position:relative">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:24px 28px;min-width:280px;max-width:480px;width:90vw;box-shadow:0 8px 32px rgba(0,0,0,.25);position:relative">
     <button onclick="hideContact()" style="position:absolute;top:10px;right:12px;background:none;border:none;font-size:18px;color:var(--muted);cursor:pointer;line-height:1">×</button>
-    <div style="font-size:13px;font-weight:700;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:14px">Kontakt</div>
-    <div style="font-size:11px;color:var(--text2);font-family:'Fira Code',monospace;margin-bottom:14px;line-height:1.6">Autor aplikacji — w razie błędów<br>lub problemów napisz na:</div>
-    <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">Piotr Jura</div>
-    <a href="mailto:piotr.jura94@gmail.com" style="font-family:'Fira Code',monospace;font-size:12px;color:var(--acc);text-decoration:none">piotr.jura94@gmail.com</a>
+    <div style="display:flex;gap:4px;margin-bottom:18px;border-bottom:1px solid var(--border);padding-bottom:0">
+      <button class="ctab-btn active" onclick="showContactTab('contact')" style="background:none;border:none;padding:6px 14px 10px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;letter-spacing:.5px;text-transform:uppercase;transition:color .15s,border-color .15s">Kontakt</button>
+      <button class="ctab-btn" onclick="showContactTab('changelog')" style="background:none;border:none;padding:6px 14px 10px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;letter-spacing:.5px;text-transform:uppercase;transition:color .15s,border-color .15s">Zmiany</button>
+    </div>
+    <div id="ctab-contact">
+      <div style="font-size:11px;color:var(--text2);font-family:'Fira Code',monospace;margin-bottom:14px;line-height:1.6">Autor aplikacji — w razie błędów<br>lub problemów napisz na:</div>
+      <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">Piotr Jura</div>
+      <a href="mailto:piotr.jura94@gmail.com" style="font-family:'Fira Code',monospace;font-size:12px;color:var(--acc);text-decoration:none">piotr.jura94@gmail.com</a>
+    </div>
+    <div id="ctab-changelog" style="display:none;max-height:60vh;overflow-y:auto;font-size:12px;line-height:1.7;color:var(--text2)">
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--acc);font-family:'Fira Code',monospace;margin-bottom:8px">v1.2 — 2026-03-24</div>
+        <div style="font-weight:600;color:var(--text);margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Nowe funkcje</div>
+        <ul style="margin:0 0 8px;padding-left:16px">
+          <li>Dni wolne dla zespołu (team days off)</li>
+          <li>Tryb debugowania (podgląd diagnostyk generowania)</li>
+          <li>Limit maksymalnie 24h zmian w miesiącu</li>
+          <li>Diagnostyki generowania grafiku</li>
+          <li>Tab „Zmiany" w oknie kontaktu</li>
+        </ul>
+        <div style="font-weight:600;color:var(--text);margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Naprawione błędy</div>
+        <ul style="margin:0 0 8px;padding-left:16px">
+          <li>Podział tylko nadmiarowych zmian 24h przy przekroczeniu limitu</li>
+        </ul>
+        <div style="font-weight:600;color:var(--text);margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Refaktoryzacja</div>
+        <ul style="margin:0;padding-left:16px">
+          <li>Podział kodu na moduły (schedule, render, export, firebase, sync)</li>
+        </ul>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--acc);font-family:'Fira Code',monospace;margin-bottom:8px">v1.1.1 — 2026-03-23</div>
+        <div style="font-weight:600;color:var(--text);margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Naprawione błędy</div>
+        <ul style="margin:0 0 8px;padding-left:16px">
+          <li>Przeciąganie pracownika o ID=0</li>
+          <li>Liczba grafików po ponownym generowaniu</li>
+          <li>Generowanie przy całkowicie niedostępnych pracownikach</li>
+          <li>Statystyki: średnia godzin (pomijanie pracowników z 0h)</li>
+          <li>Dniówki — niezawodne przydzielanie minDays</li>
+          <li>Scrollowanie zatwierdzonego grafiku na mobile</li>
+        </ul>
+        <div style="font-weight:600;color:var(--text);margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Nowe funkcje</div>
+        <ul style="margin:0;padding-left:16px">
+          <li>Sortowanie grafików według odchylenia godzinowego</li>
+          <li>Eksport do PDF (A4 poziomo, kolorowe tabele)</li>
+        </ul>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--acc);font-family:'Fira Code',monospace;margin-bottom:8px">v1.1.0</div>
+        <ul style="margin:0;padding-left:16px">
+          <li>Zarządzanie świętami z API publicznego</li>
+          <li>Tryb zatwierdzania grafiku (dla teamów)</li>
+          <li>Historia zatwierdzonych grafików</li>
+          <li>Tryb 8h z wieloma zmianami</li>
+          <li>Funkcja „Wymagane dni" (reqDays)</li>
+          <li>Eksport do Excel z kolorami i statystykami</li>
+          <li>Obsługa wielu teamów (Firebase)</li>
+        </ul>
+      </div>
+    </div>
   </div>
 </div>
 <div class="team-bar" id="teamBar" style="display:none">
@@ -180,9 +235,6 @@
         <input type="number" id="maxDVal" value="3" min="1" max="7" style="width:50px;margin-left:24px;margin-top:-4px">
         <label class="chkr"><input type="checkbox" id="chkMax24" onchange="document.getElementById('max24Wrap').style.display=this.checked?'':'none'"><span class="chkl">Max zmian 24h na pracownika</span></label>
         <div id="max24Wrap" style="display:none"><input type="number" id="max24Val" value="4" min="1" max="15" style="width:50px;margin-left:24px;margin-top:-4px"><div class="chkn" style="margin-left:24px">Jeśli limit uniemożliwi generowanie — zmiany 24h zostaną automatycznie podzielone na D+N</div></div>
-        <div><label>Liczba grafików</label>
-          <select id="selC"><option value="1" selected>1</option><option value="3">3</option><option value="5">5</option><option value="10">10</option></select>
-        </div>
         <div id="shiftModeRow" style="display:flex;align-items:center;justify-content:space-between;gap:6px">
           <label style="margin:0">Tryb zmian</label>
           <div style="display:flex;align-items:center;gap:4px">
@@ -260,6 +312,17 @@
   </div>
 </div>
 
-<script src="js/app.js"></script>
+<div id="genOverlay" class="gen-overlay" style="display:none">
+  <div class="gen-overlay-card">
+    <div class="gen-ol-title">Generowanie grafiku…</div>
+    <div class="gen-ol-phase" id="genOlPhase">Inicjalizacja</div>
+    <div class="gen-progress-bar-wrap">
+      <div class="gen-progress-fill" id="genProgressFill" style="width:0%"></div>
+    </div>
+    <div class="gen-ol-stats" id="genOlStats">0 / 25 grafików</div>
+  </div>
+</div>
+
+<script type="module" src="js/init.js"></script>
 </body>
 </html>

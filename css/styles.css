@@ -261,6 +261,9 @@ td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
 /* ── PRE-FILL ─────────────────────────────────────────────────── */
 .prefill-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin:10px 20px 0;overflow:hidden}
 .prefill-hdr{display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid var(--border);background:var(--surface2)}
+.prefill-hdr.pf-collapsible:hover{background:var(--surface3)}
+.pf-collapse-arrow{font-size:10px;color:var(--muted);flex-shrink:0}
+.prefill-legend{display:flex;align-items:center;flex-wrap:wrap;gap:4px;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--surface2)}
 .prefill-title{font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--text)}
 .prefill-ro{font-family:'Fira Code',monospace;font-size:9px;color:var(--muted);padding:2px 6px;border-radius:3px;background:var(--surface3);border:1px solid var(--border)}
 .prefill-scroll{overflow-x:auto;padding-bottom:2px}
@@ -372,6 +375,11 @@ td.scol-td{background:var(--surface2);border-left:2px solid var(--border)}
   .empty h2{font-size:13px}
   .empty p{font-size:10px}
 }
+
+/* ── CONTACT MODAL TABS ──────────────────────────────────── */
+.ctab-btn{color:var(--muted)!important}
+.ctab-btn.active{color:var(--acc)!important;border-bottom-color:var(--acc)!important}
+.ctab-btn:hover{color:var(--text)!important}
 
 /* ── LOGIN ───────────────────────────────────────────────── */
 .login-overlay{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px}
@@ -519,3 +527,25 @@ th.tdoh{background:var(--surface2)!important;color:var(--muted)!important;text-d
 .wdrag-handle:hover{color:var(--muted)}
 .wcard.wdrag-src{opacity:.4;border-style:dashed}
 .wcard.wdrag-over{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc-dim);transform:scale(1.01);transition:transform .1s,box-shadow .1s}
+
+/* ── NAWIGACJA MIĘDZY GRAFIKAMI ────────────────────────────────── */
+.sched-nav-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:8px 0 10px;border-bottom:1px solid var(--border);margin-bottom:10px}
+.sched-nav-arrows{display:flex;align-items:center;gap:10px}
+.sched-arrow-btn{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text2);font-size:18px;line-height:1;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s,opacity .15s}
+.sched-arrow-btn:hover:not(:disabled){background:var(--acc-dim);border-color:var(--acc);color:var(--acc)}
+.sched-arrow-btn:disabled{opacity:.3;cursor:default}
+.sched-nav-counter{font-family:'Fira Code',monospace;font-size:13px;color:var(--text2);min-width:100px;text-align:center}
+.sched-nav-counter strong{color:var(--text);font-size:15px}
+.sched-nav-exports{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+/* Ostrzeżenia generatora */
+.gen-notice{border-radius:var(--r);padding:10px 14px;font-size:10px;font-family:'Fira Code',monospace;margin-bottom:6px}
+.gen-notice-warn{background:var(--yellow-bg);border:1px solid var(--yellow);color:var(--yellow)}
+
+/* ── OVERLAY GENEROWANIA ──────────────────────────────────────────── */
+.gen-overlay{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center}
+.gen-overlay-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:28px 36px;min-width:300px;max-width:420px;width:90%;display:flex;flex-direction:column;gap:14px;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+.gen-ol-title{font-size:13px;font-weight:700;color:var(--text);letter-spacing:.3px}
+.gen-ol-phase{font-family:'Fira Code',monospace;font-size:10px;color:var(--muted);min-height:16px}
+.gen-progress-bar-wrap{height:8px;background:var(--surface3);border-radius:4px;overflow:hidden;border:1px solid var(--border)}
+.gen-progress-fill{height:100%;background:var(--acc);border-radius:4px;transition:width .25s ease;width:0%}
+.gen-ol-stats{font-family:'Fira Code',monospace;font-size:11px;color:var(--text2);font-weight:700}

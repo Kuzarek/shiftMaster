@@ -717,6 +717,7 @@ function backtrack(shifts,idx,sched,results,limit,cfg){
   if(results.length>=limit)return;
   if(cfg._deadline&&Date.now()>cfg._deadline)return;
   if(idx===shifts.length){results.push([...sched]);return;}
+  cfg._calls=(cfg._calls||0)+1;
   const shift=shifts[idx];
   const sorted=(teamSession?workers.filter(w=>!w.disabled):[...workers]).sort((a,b)=>wScore(a,shift,sched,cfg)-wScore(b,shift,sched,cfg));
   for(const w of sorted){
@@ -752,148 +753,200 @@ function runGen(){
   if(teamSession)_skipSnap=true;
   function _doGen(){
   const btn=document.getElementById('genBtn');
-  btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Generowanie...';
-  setTimeout(()=>{
+  btn.disabled=true;
+  const genStart=Date.now();
+
+  function setPhase(phase,calls,found){
+    const sec=((Date.now()-genStart)/1000).toFixed(1);
+    const callsK=calls>=1000?(calls/1000).toFixed(1)+'k':String(calls);
+    btn.innerHTML=`<span class="spinner"></span>${phase} · ${sec}s · ${callsK} kombinacji`+(found?` · ${found} znalezionych`:'');
+  }
+
+  function finish(err){
     try{
       const {y,m}=ym();
-      const tol=+document.getElementById('selT').value;
-      const count=+document.getElementById('selC').value;
-      const maxNVal=+document.getElementById('maxNVal').value||3;
-      const maxDVal=+document.getElementById('maxDVal').value||3;
       const shiftMode=document.getElementById('selShiftMode').value;
-      const max24On=!!(document.getElementById('chkMax24')&&document.getElementById('chkMax24').checked);
-      const max24Val=+(document.getElementById('max24Val')&&document.getElementById('max24Val').value)||4;
-      const baseCfg={
-        maxN:document.getElementById('chkN').checked,
-        maxNVal,
-        maxD:document.getElementById('chkD').checked,
-        maxDVal,
-        maxSun:!!(document.getElementById('chkMaxSun')&&document.getElementById('chkMaxSun').checked),
-        max24:max24On,max24Val,
-        count,tol,
-      };
-
-      // In 8h mode there are no nights or weekends — no fallback strategy
       const minPerDay=shiftMode==='8h'?(+document.getElementById('minPerDay').value||1):1;
-      let fallbackUsed=false,split24Used=false,split24Dates=[],results1=[];
-      if(shiftMode==='8h'){
-        const deadline8=30000*Math.max(1,minPerDay);
-        const allShifts=genShifts(y,m,shiftMode,minPerDay);
-        const {prefilled,remaining}=prefillReqDays(allShifts,y,m);
-        let cfg1={...baseCfg,quotas:buildQuotas(y,m,shiftMode,minPerDay),_deadline:Date.now()+deadline8};
-        const results1=[];
-        backtrack(remaining,0,[...prefilled],results1,count,cfg1);
-        schedules=results1;
+      if(err){
+        document.getElementById('mainInner').innerHTML=`<div class="alert">⚠ Błąd: ${err.message}</div>`;
+      } else if(!schedules.length){
+        const baseCfg=_lastBaseCfg||{};
+        document.getElementById('mainInner').innerHTML=diagNoSchedule(y,m,shiftMode,minPerDay,baseCfg,Date.now()-genStart);
+      } else if(_split24Used){
+        schedules.sort((a,b)=>schedDeviation(a,y,m)-schedDeviation(b,y,m));
+        schedules=schedules.slice(0,count);
+        renderAll(y,m,false,schedules.length,_split24Dates,_totalFound);
+        autoSave();
+      } else if(_fallbackUsed){
+        schedules.sort((a,b)=>schedDeviation(a,y,m)-schedDeviation(b,y,m));
+        schedules=schedules.slice(0,count);
+        renderAll(y,m,true,_results1Len,null,_totalFound);
+        autoSave();
       } else {
-      // Strategy: first try with current weekend settings (default 24h).
-      // If enough schedules found — done.
-      // If not (or too few) — auto-switch all weekends to split (D+N)
-      // and generate more schedules to fill the remaining count.
+        schedules.sort((a,b)=>schedDeviation(a,y,m)-schedDeviation(b,y,m));
+        schedules=schedules.slice(0,count);
+        renderAll(y,m,false,schedules.length,null,_totalFound);
+        autoSave();
+      }
+    }catch(e2){document.getElementById('mainInner').innerHTML=`<div class="alert">⚠ Błąd: ${e2.message}</div>`;}
+    btn.disabled=false;btn.innerHTML='⚡ Generuj Grafik';
+    if(window.innerWidth<=900){const sb=document.getElementById('sidebar');if(sb.classList.contains('open'))togSidebar();}
+  }
 
+  let _lastBaseCfg=null,_fallbackUsed=false,_split24Used=false,_split24Dates=[],_results1Len=0,_totalFound=0;
+
+  setTimeout(()=>{
+  try{
+    const {y,m}=ym();
+    const tol=+document.getElementById('selT').value;
+    const count=+document.getElementById('selC').value;
+    const maxNVal=+document.getElementById('maxNVal').value||3;
+    const maxDVal=+document.getElementById('maxDVal').value||3;
+    const shiftMode=document.getElementById('selShiftMode').value;
+    const max24On=!!(document.getElementById('chkMax24')&&document.getElementById('chkMax24').checked);
+    const max24Val=+(document.getElementById('max24Val')&&document.getElementById('max24Val').value)||4;
+    const baseCfg={
+      maxN:document.getElementById('chkN').checked,
+      maxNVal,
+      maxD:document.getElementById('chkD').checked,
+      maxDVal,
+      maxSun:!!(document.getElementById('chkMaxSun')&&document.getElementById('chkMaxSun').checked),
+      max24:max24On,max24Val,
+      count,tol,
+    };
+    _lastBaseCfg=baseCfg;
+    const minPerDay=shiftMode==='8h'?(+document.getElementById('minPerDay').value||1):1;
+    // Search for many more solutions than requested — sort all by deviation, show best `count`
+    const innerCount=1000;
+
+    if(shiftMode==='8h'){
+      setPhase('Generowanie (8h)',0,0);
+      setTimeout(()=>{
+        try{
+          const deadline8=30000*Math.max(1,minPerDay);
+          const allShifts=genShifts(y,m,shiftMode,minPerDay);
+          const {prefilled,remaining}=prefillReqDays(allShifts,y,m);
+          const cfg1={...baseCfg,quotas:buildQuotas(y,m,shiftMode,minPerDay),_deadline:Date.now()+deadline8};
+          const res=[];
+          backtrack(remaining,0,[...prefilled],res,innerCount,cfg1);
+          _totalFound=res.length;
+          schedules=res;
+          setPhase('Gotowe',cfg1?._calls||0,schedules.length);
+          finish(null);
+        }catch(e){console.error(e);finish(e);}
+      },0);
+      return;
+    }
+
+    // ── Phase 1 (+ retry) ──
+    setPhase('Faza 1/3: oryginalne ustawienia',0,0);
+    setTimeout(()=>{
+    try{
       const origWeModes={...weModes};
-
       const allShifts12=genShifts(y,m,shiftMode);
       const {prefilled:pf12,remaining:rem12}=prefillReqDays(allShifts12,y,m);
-      let cfg1={...baseCfg,quotas:buildQuotas(y,m,shiftMode),_deadline:Date.now()+30000};
-      backtrack(rem12,0,[...pf12],results1,count,cfg1);
-
-      let finalResults=results1;
-
-      if(results1.length<count){
-        const splitModes={};
-        Object.keys(origWeModes).forEach(k=>splitModes[k]='split');
-        const savedModes=weModes;
-        weModes=splitModes;
-
-        const need=count-results1.length;
-        const allShiftsFb=genShifts(y,m,shiftMode);
-        const {prefilled:pfFb,remaining:remFb}=prefillReqDays(allShiftsFb,y,m);
-        let cfg2={...baseCfg,quotas:buildQuotas(y,m,shiftMode),_deadline:Date.now()+30000};
-        const results2=[];
-        backtrack(remFb,0,[...pfFb],results2,need,cfg2);
-
-        weModes=savedModes; // restore original
-
-        if(results2.length>0){
-          fallbackUsed=true;
-          finalResults=[...results1,...results2].slice(0,count);
-        }
+      // Give Phase 1 two attempts (different random orderings) before falling back
+      const cfg1a={...baseCfg,quotas:buildQuotas(y,m,shiftMode),_deadline:Date.now()+20000};
+      const results1=[];
+      backtrack(rem12,0,[...pf12],results1,innerCount,cfg1a);
+      let totalCalls1=cfg1a?._calls||0;
+      if(results1.length===0){
+        setPhase('Faza 1/3: oryginalne ustawienia (próba 2)',totalCalls1,0);
+        const cfg1b={...baseCfg,quotas:buildQuotas(y,m,shiftMode),_deadline:Date.now()+20000};
+        backtrack(rem12,0,[...pf12],results1,innerCount,cfg1b);
+        totalCalls1+=(cfg1b?._calls||0);
       }
+      _totalFound=results1.length;
+      setPhase('Faza 1/3 gotowa',totalCalls1,results1.length);
 
-      schedules=finalResults;
+      // ── Phase 2 ──
+      setTimeout(()=>{
+      try{
+        let finalResults=results1;
+        if(results1.length===0){
+          setPhase('Faza 2/3: fallback weekendy D+N',totalCalls1,results1.length);
+          const splitModes={};
+          Object.keys(origWeModes).forEach(k=>splitModes[k]='split');
+          weModes=splitModes;
+          const allShiftsFb=genShifts(y,m,shiftMode);
+          const {prefilled:pfFb,remaining:remFb}=prefillReqDays(allShiftsFb,y,m);
+          const cfg2={...baseCfg,quotas:buildQuotas(y,m,shiftMode),_deadline:Date.now()+30000};
+          const results2=[];
+          backtrack(remFb,0,[...pfFb],results2,innerCount,cfg2);
+          weModes=origWeModes;
+          _totalFound=results2.length;
+          if(results2.length>0){
+            _fallbackUsed=true;
+            finalResults=results2;
+          }
+          setPhase('Faza 2/3 gotowa',totalCalls1+(cfg2?._calls||0),finalResults.length);
+        }
+        schedules=finalResults;
 
-      // ── Fallback 2: if max24 is active and still no schedules, split excess 24h → D+N ──
-      if(!schedules.length&&max24On){
-        const activeCount=(teamSession?workers.filter(w=>!w.disabled):workers).length;
-        const capacity=max24Val*activeCount;
-        // Generate original shifts to find all 24h dates
-        const allOrig=genShifts(y,m,shiftMode);
-        const all24=allOrig.filter(s=>s.type==='24h');
+        // ── Phase 3: split 24h ──
+        if(!schedules.length&&max24On){
+          const activeCount=(teamSession?workers.filter(w=>!w.disabled):workers).length;
+          const capacity=max24Val*activeCount;
+          const allOrig=genShifts(y,m,shiftMode);
+          const all24=allOrig.filter(s=>s.type==='24h');
+          if(all24.length>capacity){
+            const scored24=[...all24].map(s=>{
+              const avail=workers.filter(w=>{
+                if(teamSession&&w.disabled)return false;
+                const r=w.days[s.date];return r!=='vac'&&r!=='off'&&r!=='no-both';
+              }).length;
+              return {...s,avail};
+            }).sort((a,b)=>b.avail-a.avail);
 
-        if(all24.length>capacity){
-          // Sort 24h shifts: split the excess ones (prefer splitting days with most available workers)
-          const scored24=[...all24].map(s=>{
-            const avail=workers.filter(w=>{
-              if(teamSession&&w.disabled)return false;
-              const r=w.days[s.date];return r!=='vac'&&r!=='off'&&r!=='no-both';
-            }).length;
-            return {...s,avail};
-          }).sort((a,b)=>b.avail-a.avail); // most available first = best candidates to split (need 2 workers)
+            const minSplit=all24.length-capacity;
+            const totalTries=all24.length-minSplit+1;
+            const fbDeadline=Date.now()+30000;
+            let totalCalls=0;
 
-          const toSplit=new Set(scored24.slice(0,all24.length-capacity).map(s=>s.date));
-          split24Dates=[...toSplit];
-
-          // Build new shift list: keep 24h for non-split dates, D+N for split dates
-          const newShifts=[];
-          allOrig.forEach(s=>{
-            if(s.type==='24h'&&toSplit.has(s.date)){
-              newShifts.push({date:s.date,type:'dzien',hours:12});
-              newShifts.push({date:s.date,type:'noc',hours:12});
-            } else {
-              newShifts.push(s);
-            }
-          });
-          newShifts.sort((a,b)=>a.date.localeCompare(b.date)||(a.type==='dzien'?-1:b.type==='dzien'?1:0));
-
-          const {prefilled:pfS24,remaining:remS24}=prefillReqDays(newShifts,y,m);
-          const cfgS24={...baseCfg,quotas:buildQuotas(y,m,shiftMode),_deadline:Date.now()+30000};
-          const resultsS24=[];
-          backtrack(remS24,0,[...pfS24],resultsS24,count,cfgS24);
-
-          if(resultsS24.length>0){
-            split24Used=true;
-            schedules=resultsS24;
+            const tryNextSplit=(splitCount)=>{
+              if(splitCount>all24.length||Date.now()>=fbDeadline){finish(null);return;}
+              setPhase(`Faza 3/3: podział 24h (${splitCount-minSplit+1}/${totalTries})`,totalCalls,0);
+              setTimeout(()=>{
+                try{
+                  const toSplit=new Set(scored24.slice(0,splitCount).map(s=>s.date));
+                  const newShifts=[];
+                  allOrig.forEach(s=>{
+                    if(s.type==='24h'&&toSplit.has(s.date)){
+                      newShifts.push({date:s.date,type:'dzien',hours:12});
+                      newShifts.push({date:s.date,type:'noc',hours:12});
+                    } else {
+                      newShifts.push(s);
+                    }
+                  });
+                  newShifts.sort((a,b)=>a.date.localeCompare(b.date)||(a.type==='dzien'?-1:b.type==='dzien'?1:0));
+                  const {prefilled:pfS24,remaining:remS24}=prefillReqDays(newShifts,y,m);
+                  const cfgS24={...baseCfg,quotas:buildQuotas(y,m,shiftMode),_deadline:fbDeadline};
+                  const resultsS24=[];
+                  backtrack(remS24,0,[...pfS24],resultsS24,innerCount,cfgS24);
+                  totalCalls+=(cfgS24?._calls||0);
+                  if(resultsS24.length>0){
+                    _split24Used=true;
+                    _split24Dates=[...toSplit];
+                    _totalFound=resultsS24.length;
+                    schedules=resultsS24;
+                    setPhase(`Faza 3/3 gotowa`,totalCalls,schedules.length);
+                    finish(null);
+                  } else {
+                    tryNextSplit(splitCount+1);
+                  }
+                }catch(e){console.error(e);finish(e);}
+              },0);
+            };
+            tryNextSplit(minSplit);
+            return; // finish() called inside tryNextSplit chain
           }
         }
-      }
-
-      } // end else (12/24h mode)
-      if(!schedules.length){
-        const {y:dy,m:dm}=ym();
-        document.getElementById('mainInner').innerHTML=diagNoSchedule(dy,dm,shiftMode,minPerDay,baseCfg);
-      } else if(split24Used){
-        schedules.sort((a,b)=>schedDeviation(a,y,m)-schedDeviation(b,y,m));
-        renderAll(y,m,false,schedules.length,split24Dates);
-        autoSave();
-      } else if(fallbackUsed){
-        // 12/24h mode with split fallback — sort each group separately, 24h first
-        const origScheds=schedules.slice(0,results1.length).sort((a,b)=>schedDeviation(a,y,m)-schedDeviation(b,y,m));
-        const fbScheds=schedules.slice(results1.length).sort((a,b)=>schedDeviation(a,y,m)-schedDeviation(b,y,m));
-        schedules=[...origScheds,...fbScheds];
-        renderAll(y,m,true,origScheds.length);
-        autoSave();
-      } else {
-        schedules.sort((a,b)=>schedDeviation(a,y,m)-schedDeviation(b,y,m));
-        renderAll(y,m,false,schedules.length);
-        autoSave();
-      }
-    }catch(e){document.getElementById('mainInner').innerHTML=`<div class="alert">⚠ Błąd: ${e.message}</div>`;}
-    btn.disabled=false;btn.innerHTML='⚡ Generuj Grafik';
-    // Auto-close sidebar on mobile after generating
-    if(window.innerWidth<=900){
-      const sb=document.getElementById('sidebar');
-      if(sb.classList.contains('open'))togSidebar();
-    }
+        finish(null);
+      }catch(e){console.error(e);finish(e);}
+      },0);
+    }catch(e){console.error(e);finish(e);}
+    },0);
+  }catch(e){console.error(e);finish(e);}
   },30);
   } // end _doGen
 
@@ -1017,10 +1070,12 @@ function renderPreFill(){
 
 // ── RENDER ALL SCHEDULES (stacked) ────────────────────────────────
 // firstCount = how many schedules come from original settings (rest = split fallback)
-function renderAll(y,m,fallbackUsed=false,firstCount=schedules.length,split24Dates=null){
+function renderAll(y,m,fallbackUsed=false,firstCount=schedules.length,split24Dates=null,totalFound=schedules.length){
   renderPreFill();
   const mi=document.getElementById('mainInner');
-  let notice='';
+  const foundLabel=totalFound===1?'u':totalFound<5?'i':'ów';
+  const shownLabel=totalFound>schedules.length?` · wyświetlane: <b>${schedules.length}</b> z nich (najniższe odchylenie)`:'';
+  let notice=`<div style="font-size:11px;color:var(--muted);font-family:'Fira Code',monospace;margin-bottom:6px">Znaleziono <b>${totalFound}</b> poprawnych grafik${foundLabel}${shownLabel}</div>`;
   if(split24Dates&&split24Dates.length){
     const dayList=split24Dates.map(d=>{const dd=+d.slice(8,10);return `<b>${dd} ${MSHORT[+d.slice(5,7)]}</b>`;}).join(', ');
     notice+=`<div style="background:var(--yellow-bg);border:1px solid var(--yellow);border-radius:var(--r);padding:10px 14px;font-size:10px;font-family:'Fira Code',monospace;color:var(--yellow);margin-bottom:2px">
@@ -1231,7 +1286,7 @@ function applyCellType(type,slot){
 document.addEventListener('click',()=>{document.getElementById('cellMenu').style.display='none';});
 
 // ── DIAGNOSTICS — why schedule generation failed ─────────────────
-function diagNoSchedule(y,m,shiftMode,minPerDay,cfg){
+function diagNoSchedule(y,m,shiftMode,minPerDay,cfg,elapsedMs){
   const n=dim(y,m);
   const is8=shiftMode==='8h';
   const activeW=workers.filter(w=>!(teamSession&&w.disabled));
@@ -1375,7 +1430,8 @@ function diagNoSchedule(y,m,shiftMode,minPerDay,cfg){
 
   // If no specific issues found, generic message
   if(!issues.length){
-    issues.push('Algorytm nie znalazł żadnego poprawnego grafiku w wyznaczonym czasie (30 sek). Ograniczenia mogą być zbyt ścisłe w kombinacji.');
+    const secStr=elapsedMs!=null?(elapsedMs/1000).toFixed(1)+'s':'~30s';
+    issues.push(`Algorytm nie znalazł żadnego poprawnego grafiku (czas: ${secStr}). Ograniczenia są zbyt ścisłe w kombinacji — przestrzeń rozwiązań jest pusta.`);
     hints.push('Zwiększ „Max odchylenie godzin", poluzuj limity nocek/dniówek z rzędu lub zmniejsz liczbę ograniczeń indywidualnych pracowników.');
   }
 
